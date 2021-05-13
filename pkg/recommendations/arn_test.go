@@ -3,7 +3,7 @@ package recommendations_test
 import (
 	"testing"
 
-	"iamzero.dev/server/pkg/recommendations"
+	"github.com/common-fate/iamzero/pkg/recommendations"
 )
 
 func TestGetRoleNameFromARN(t *testing.T) {

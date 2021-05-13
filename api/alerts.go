@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/common-fate/iamzero/api/io"
+	"github.com/common-fate/iamzero/pkg/events"
+	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/go-chi/chi"
-	"iamzero.dev/server/api/io"
-	"iamzero.dev/server/pkg/events"
-	"iamzero.dev/server/pkg/recommendations"
 )
 
 type AlertResponse struct {

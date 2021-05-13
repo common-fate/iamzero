@@ -1,4 +1,4 @@
-module iamzero.dev/server
+module github.com/common-fate/iamzero
 
 go 1.16
 

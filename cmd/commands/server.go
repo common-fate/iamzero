@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/common-fate/iamzero/cmd/server"
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"iamzero.dev/server/cmd/server"
 )
 
 // ServerCommand configuration object

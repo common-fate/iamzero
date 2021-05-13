@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"iamzero.dev/server/cmd/commands"
+	"github.com/common-fate/iamzero/cmd/commands"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 )

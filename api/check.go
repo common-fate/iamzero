@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/common-fate/iamzero/api/io"
 	"go.uber.org/zap"
-	"iamzero.dev/server/api/io"
 )
 
 // Check provides support for orchestration health checks.

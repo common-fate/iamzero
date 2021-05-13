@@ -3,8 +3,8 @@ package recommendations
 import (
 	"time"
 
+	"github.com/common-fate/iamzero/pkg/events"
 	"go.uber.org/zap"
-	"iamzero.dev/server/pkg/events"
 )
 
 // AdviceFactory generates Advice based on a provided event
