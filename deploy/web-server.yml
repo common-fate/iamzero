@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: The service that defines the server for iamzero
+
+Parameters:
+  CertificateArn:
+    Type: String
+    Description: TLS certificate used by the web app.
+    AllowedPattern: '^((arn:(aws|aws-cn|aws-us-gov):acm:[a-z]{2}-[a-z]{4,9}-[1-9]:\d{12}:certificate\/[a-f0-9-]{36})|(arn:(aws|aws-cn|aws-us-gov):iam::\d{12}:server-certificate\/\S+))?$'
+
+  CloudWatchLogRetentionDays:
+    Type: Number
+    Description: CloudWatch log retention period
+    MinValue: 1
+  ElbArn:
+    Type: String
+    Description: The ARN of the load balancer
+    AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):elasticloadbalancing:[a-z]{2}-[a-z]{4,9}-[1-9]:\d{12}:loadbalancer\/\S+$'
+  ElbFullName:
+    Type: String
+    Description: The full name of the load balancer
+    # Example: "app/web/c39f74f9a62dd3c0"
+    AllowedPattern: '^[a-z0-9\/]{15,}$'
+  ElbTargetGroup:
+    Type: String
+    Description: The ARN of the load balancer target group
+    AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):elasticloadbalancing:[a-z]{2}-[a-z]{4,9}-[1-9]:\d{12}:targetgroup\/\S+$'
+
+  SecurityGroup:
+    Type: String
+    Description: Web app security group ID
+    # Example: "sg-07114d098de449a39"
+    AllowedPattern: "^sg-[0-9a-f]{10,}$"
+  SubnetOneId:
+    Type: String
+    Description: The ID of a subnet in the VPC above
+    # Example: "subnet-0014ecfa3c45ff9d9"
+    AllowedPattern: "^subnet-[0-9a-f]{4,}$"
+  SubnetTwoId:
+    Type: String
+    Description: The ID of another subnet in the VPC above
+    AllowedPattern: "^subnet-[0-9a-f]{4,}$"
+
+Mappings:
+  ECS:
+    Task:
+      CPU: 512
+      Memory: 1024
+      Port: 80
+
+Conditions:
+  CreateCertificate: !Equals [!Ref CertificateArn, ""]
+
+Resources:
+  PublicLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref CertificateArn,
+      DefaultActions:
+        - TargetGroupArn: !Ref ElbTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref ElbArn
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS-1-2-Ext-2018-06
+
+  PublicHttpRedirectListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: "443"
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: HTTP_301
+      LoadBalancerArn: !Ref ElbArn
+      Port: 80
+      Protocol: HTTP
+
+  # Create a rule on the load balancer for routing traffic to the target group
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref ElbTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - "*"
+      ListenerArn: !Ref PublicLoadBalancerListener
+      Priority: 1
+
+  WebApplicationCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: iamzero-server-cluster
+
+  # The service that will instantiate a server task and restrict access through our ALB
+  WebApplicationServer:
+    Type: AWS::ECS::Service
+    # The cert in the listener can't be deleted until the service has stopped.
+    DependsOn: PublicLoadBalancerListener
+    Properties:
+      Cluster: !Ref WebApplicationCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      HealthCheckGracePeriodSeconds: 60
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref SecurityGroup
+          Subnets:
+            - !Ref SubnetOneId
+            - !Ref SubnetTwoId
+      PlatformVersion: LATEST
+      SchedulingStrategy: REPLICA
+      ServiceName: iamzero-server
+      TaskDefinition: !Ref WebApplicationServerDefinition
+      LoadBalancers:
+        - ContainerName: iamzero-server
+          ContainerPort: !FindInMap [ECS, Task, Port]
+          TargetGroupArn: !Ref ElbTargetGroup
+
+  # The role that allows the containers in the task to pull images and publish logs to CloudWatch
+  WebApplicationServerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  # A log group for storing the stdout logs from the server's task definition
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: iamzero-server-logs
+      RetentionInDays: !Ref CloudWatchLogRetentionDays
+
+  # The container definition for the image
+  WebApplicationServerDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Name: iamzero-server
+          Cpu: !FindInMap [ECS, Task, CPU]
+          DisableNetworking: false
+
+          # env variables can be added here
+          # Environment:
+          #   - Name: SERVER_PORT
+          #     Value: !FindInMap [ECS, Task, Port]
+
+          Essential: true
+          Image: ghcr.io/exponent-labs/iamzero-server:latest
+          Interactive: false
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: iamzero-server
+          Memory: !FindInMap [ECS, Task, Memory]
+          MemoryReservation: !FindInMap [ECS, Task, Memory]
+          PortMappings:
+            - ContainerPort: !FindInMap [ECS, Task, Port]
+          ReadonlyRootFilesystem: false
+      Cpu: !FindInMap [ECS, Task, CPU]
+      ExecutionRoleArn: !GetAtt WebApplicationServerExecutionRole.Arn
+      Family: iamzero-server
+      Memory: !FindInMap [ECS, Task, Memory]
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE

@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Main template for deploying iamzero
+
+Parameters:
+  AccessLogsBucketName:
+    Type: String
+    Description: Name of the S3 bucket for storing S3 access logs (has no effect if EnableS3AccessLogs=false). Defaults to the iamzero audit bucket, created automatically.
+    Default: ""
+    AllowedPattern: "^([a-z0-9.-]{3,63})?$"
+  CertificateArn:
+    Type: String
+    Description: TLS certificate (ACM or IAM) used by the web app - see also CustomDomain.
+    Default: ""
+    AllowedPattern: '^((arn:(aws|aws-cn|aws-us-gov):acm:[a-z]{2}-[a-z]{4,9}-[1-9]:\d{12}:certificate\/[a-f0-9-]{36})|(arn:(aws|aws-cn|aws-us-gov):iam::\d{12}:server-certificate\/\S+))?$'
+  CloudWatchLogRetentionDays:
+    Type: Number
+    Description: Number of days to retain CloudWatch logs (e.g. Lambda execution logs)
+    Default: 365
+    MinValue: 1
+  CustomDomain:
+    Type: String
+    Description: If CertificateArn is registered for a custom domain (e.g. 'app.example.com'), list that here.
+    Default: ""
+    AllowedPattern: '^([a-z0-9.-]+\.[a-z]{2,})?$'
+  EnableS3AccessLogs:
+    Type: String
+    Description: Enable S3 access logging for iamzero audit log bucket
+    AllowedValues: [true, false]
+    Default: true
+  LoadBalancerSecurityGroupCidr:
+    Type: String
+    Description: Allow HTTP(S) ingress access to the web app (ALB) security group from this IP block. Use 0.0.0.0/0 to allow unrestricted access
+    Default: 0.0.0.0/0
+    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
+  SecurityGroupID:
+    Type: String
+    Description: An existing SecurityGroup to deploy iamzero into. Only takes affect if VpcID is specified.
+    Default: ""
+    AllowedPattern: "^(sg-[0-9a-f]{10,})?$"
+  SubnetOneID:
+    Type: String
+    Description: An existing Subnet to deploy the iamzero loadbalancer into. If you set this option, you must also specify VpcID, SecurityGroupID, SubnetOneIPRange, and SubnetTwoIPRange.
+    Default: ""
+    AllowedPattern: "^(subnet-[0-9a-f]{4,})?$"
+  SubnetTwoID:
+    Type: String
+    Description: A second existing Subnet to deploy the iamzero loadbalancer into. If you set this option, you must also specify VpcID, SecurityGroupID, SubnetOneIPRange, and SubnetTwoIPRange.
+    Default: ""
+    AllowedPattern: "^(subnet-[0-9a-f]{4,})?$"
+  SubnetOneIPRange:
+    Type: String
+    Description: A valid & available IP range in the existing VPC you plan to deploy iamzero into. Only takes affect if VpcID is specified.
+    Default: "172.31.250.0/26"
+    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
+  SubnetTwoIPRange:
+    Type: String
+    Description: A second valid & available IP range in the existing VPC you plan to deploy iamzero into, for multiple AZ redundancy. Only takes affect if VpcID is specified.
+    Default: "172.31.251.0/26"
+    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
+  VpcID:
+    Type: String
+    Description: An existing VPC to deploy the iamzero loadbalancer into. If you set this option, you must also specify SecurityGroupID, SubnetOneIPRange, and SubnetTwoIPRange.
+    Default: ""
+    AllowedPattern: "^(vpc-[0-9a-f]{4,})?$"
+
+Resources:
+  Bootstrap:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: bootstrap.yml
+      Parameters:
+        AccessLogsBucket: !Ref AccessLogsBucketName
+        CloudWatchLogRetentionDays: !Ref CloudWatchLogRetentionDays
+        CustomDomain: !Ref CustomDomain
+
+        EnableS3AccessLogs: !Ref EnableS3AccessLogs
+        LoadBalancerSecurityGroupCidr: !Ref LoadBalancerSecurityGroupCidr
+        VpcID: !Ref VpcID
+        SecurityGroupID: !Ref SecurityGroupID
+        SubnetOneID: !Ref SubnetOneID
+        SubnetTwoID: !Ref SubnetTwoID
+        SubnetOneIPRange: !Ref SubnetOneIPRange
+        SubnetTwoIPRange: !Ref SubnetTwoIPRange
+      Tags:
+        - Key: Application
+          Value: iamzero
+        - Key: Stack
+          Value: iamzero-bootstrap
+
+  Web:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: web-server.yml
+      TimeoutInMinutes: 20 # if something goes wrong, the ECS service will get stuck in a retry loop for 4 hours
+      Parameters:
+        CertificateArn: !Ref CertificateArn
+        CloudWatchLogRetentionDays: !Ref CloudWatchLogRetentionDays
+        ElbArn: !GetAtt Bootstrap.Outputs.LoadBalancerArn
+        ElbFullName: !GetAtt Bootstrap.Outputs.LoadBalancerFullName
+        ElbTargetGroup: !GetAtt Bootstrap.Outputs.LoadBalancerTargetGroup
+        SecurityGroup: !GetAtt Bootstrap.Outputs.WebSecurityGroup
+        SubnetOneId: !GetAtt Bootstrap.Outputs.SubnetOneId
+        SubnetTwoId: !GetAtt Bootstrap.Outputs.SubnetTwoId
+      Tags:
+        - Key: Application
+          Value: iamzero
+        - Key: Stack
+          Value: iamzero-web
+
+Outputs:
+  LoadBalancerUrl:
+    Description: iamzero URL serving the web app
+    Value: !Sub https://${Bootstrap.Outputs.LoadBalancerUrl}
