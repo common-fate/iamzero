@@ -5,13 +5,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/common-fate/iamzero/api"
+	"github.com/common-fate/iamzero/internal/middleware"
+	"github.com/common-fate/iamzero/pkg/storage"
+	"github.com/common-fate/iamzero/web"
 	"github.com/go-chi/chi"
 	chiMiddleware "github.com/go-chi/chi/middleware"
 	"go.uber.org/zap"
-	"iamzero.dev/server/api"
-	"iamzero.dev/server/internal/middleware"
-	"iamzero.dev/server/pkg/storage"
-	"iamzero.dev/server/web"
 )
 
 // APIConfig is the configuration struct to build the API handlers

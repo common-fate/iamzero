@@ -3,7 +3,7 @@ package storage
 import (
 	"errors"
 
-	"iamzero.dev/server/pkg/recommendations"
+	"github.com/common-fate/iamzero/pkg/recommendations"
 )
 
 type AlertStorage struct {

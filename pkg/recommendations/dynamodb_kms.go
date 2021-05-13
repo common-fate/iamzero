@@ -11,9 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
+	"github.com/common-fate/iamzero/pkg/events"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"iamzero.dev/server/pkg/events"
 )
 
 type KMSRecommendation struct {

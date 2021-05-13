@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/common-fate/iamzero/api/io"
+	"github.com/common-fate/iamzero/pkg/events"
+	"github.com/common-fate/iamzero/pkg/recommendations"
+	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"iamzero.dev/server/api/io"
-	"iamzero.dev/server/pkg/events"
-	"iamzero.dev/server/pkg/recommendations"
-	"iamzero.dev/server/pkg/storage"
 )
 
 // Handlers is the configuration for the handlers with required objects

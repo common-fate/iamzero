@@ -10,9 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/common-fate/iamzero/pkg/events"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"iamzero.dev/server/pkg/events"
 )
 
 type JSONPolicyParams struct {
