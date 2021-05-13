@@ -1,5 +1,7 @@
 # Contributing to iamzero
 
+We welcome all contributions to IAM Zero. Please read our [Contributor Code of Conduct](./CODE_OF_CONDUCT.md).
+
 ## Getting set up
 
 This project is a web service with the backend written in Go and frontend written in React and TypeScript. To run this project locally you will need:
