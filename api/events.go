@@ -20,6 +20,10 @@ type Handlers struct {
 	Demo    bool
 }
 
+type CreateEventBatchResponse struct {
+	AlertIDs []string `json:"alertIDs"`
+}
+
 // CreateEventBatch creates a batch of events
 func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -34,6 +38,7 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 
 	advisor := recommendations.NewAdvisor()
 
+	var res CreateEventBatchResponse
 	for _, e := range rec {
 		// censor info if in demo mode
 		if h.Demo {
@@ -57,6 +62,8 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 			HasRecommendations: false,
 		}
 
+		res.AlertIDs = append(res.AlertIDs, alert.ID)
+
 		if len(advice) > 0 {
 			alert.HasRecommendations = true
 			alert.Recommendations = advice
@@ -66,5 +73,5 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 		h.Storage.Add(alert)
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	io.RespondJSON(ctx, h.Log, w, res, http.StatusAccepted)
 }

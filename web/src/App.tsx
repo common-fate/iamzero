@@ -1,6 +1,11 @@
 import { ChakraProvider, Container } from "@chakra-ui/react";
 import React from "react";
-import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Redirect,
+  Route,
+  Switch,
+} from "react-router-dom";
 import { SWRConfig } from "swr";
 import { fetchWithAuth } from "./api";
 import { AuthProvider } from "./context/authContext";
@@ -14,6 +19,12 @@ function App() {
         <Container maxW="1200px" py={5}>
           <Switch>
             <Route path="/" exact>
+              <Redirect to="/alerts" />
+            </Route>
+            <Route path="/alerts" exact>
+              <Alerts />
+            </Route>
+            <Route path="/alerts/:alertId">
               <Alerts />
             </Route>
           </Switch>

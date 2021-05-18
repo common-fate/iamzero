@@ -11,7 +11,8 @@ import {
   Tabs,
   Text,
 } from "@chakra-ui/react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router";
 import { reviewAlert, useAlerts } from "../api";
 import { Alert } from "../api-types";
 import { AlertBox } from "../components/AlertBox";
@@ -43,7 +44,22 @@ const Alerts: React.FC = () => {
 
 const AlertList: React.FC = () => {
   const { data: apiData, revalidate } = useAlerts();
+  const { alertId } = useParams<{ alertId: string }>();
   const [selectedAlert, setSelectedAlert] = useState<Alert>();
+
+  // If the user visits /alerts/:alertId, show the modal for the
+  // specified alert instantly.
+  // This allows us to display a user-friendly link in IAM Zero
+  // client libraries, where a single click will take the user
+  // to the right alert in the IAM Zero console.
+  useEffect(() => {
+    if (alertId !== undefined && apiData !== undefined) {
+      const alertToSelect = apiData.find((a) => a.id === alertId);
+      if (alertToSelect !== undefined) {
+        setSelectedAlert(alertToSelect);
+      }
+    }
+  }, [alertId, apiData]);
 
   const onClose = () => setSelectedAlert(undefined);
 
