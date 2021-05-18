@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
@@ -43,7 +42,7 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 
 		advice, err := advisor.Advise(e)
 		if err != nil {
-			io.RespondError(ctx, h.Log, w, errors.New("error building advice"))
+			io.RespondError(ctx, h.Log, w, err)
 			return
 		} else {
 			h.Log.With("advice", advice).Info("matched advisor recommendation")
