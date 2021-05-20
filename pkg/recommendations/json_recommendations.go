@@ -84,7 +84,7 @@ func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
 			Statement: iamStatements,
 		}
 
-		roleName, err := GetRoleNameFromARN(e.Identity.Role)
+		roleName, err := GetRoleOrUserNameFromARN(e.Identity.Role)
 		if err != nil {
 			return nil, err
 		}

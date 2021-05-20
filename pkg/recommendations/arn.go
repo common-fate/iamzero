@@ -5,10 +5,10 @@ import (
 	"regexp"
 )
 
-// GetRoleNameFromARN parses an ARN to return a role name,
+// GetRoleOrUserNameFromARN parses an ARN to return a role name, or a user name if it is an IAM user
 // or returns an error if the ARN is malformed.
-func GetRoleNameFromARN(arn string) (string, error) {
-	re, err := regexp.Compile(`arn:aws:sts::[\d]+:assumed-role/([\w\d+=,.@_-]+)`)
+func GetRoleOrUserNameFromARN(arn string) (string, error) {
+	re, err := regexp.Compile(`arn:aws:(?:sts::[\d]+:assumed-role|iam::\d{12}:user)/([\w\d+=,.@_-]+)`)
 	if err != nil {
 		return "", err
 	}
