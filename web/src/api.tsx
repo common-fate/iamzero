@@ -23,18 +23,6 @@ export const fetchWithAuth = (
   });
 };
 
-export const checkAuthToken = async (token: string): Promise<boolean> => {
-  return fetchWithAuth("/api/v1/login", { method: "POST" }, token)
-    .then((res) => {
-      if (res.status === 200) {
-        console.log("aa");
-        return true;
-      }
-      return false;
-    })
-    .catch(() => false);
-};
-
 export const useAlerts = () =>
   useSWR<Alert[]>("/api/v1/alerts", {
     refreshInterval: 10000,

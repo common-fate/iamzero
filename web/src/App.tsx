@@ -8,7 +8,6 @@ import {
 } from "react-router-dom";
 import { SWRConfig } from "swr";
 import { fetchWithAuth } from "./api";
-import { AuthProvider } from "./context/authContext";
 import Layout from "./layouts/Layout";
 import Alerts from "./pages/Alerts";
 
@@ -38,16 +37,14 @@ const AppProviders: React.FC = ({ children }) => {
   return (
     <ChakraProvider>
       <Router>
-        <AuthProvider>
-          <SWRConfig
-            value={{
-              fetcher: (resource, init) =>
-                fetchWithAuth(resource, init).then((res) => res.json()),
-            }}
-          >
-            {children}
-          </SWRConfig>
-        </AuthProvider>
+        <SWRConfig
+          value={{
+            fetcher: (resource, init) =>
+              fetchWithAuth(resource, init).then((res) => res.json()),
+          }}
+        >
+          {children}
+        </SWRConfig>
       </Router>
     </ChakraProvider>
   );

@@ -56,20 +56,7 @@ func API(cfg *APIConfig) http.Handler {
 		})
 
 		r.Group(func(r chi.Router) {
-			if !cfg.ProxyAuthEnabled {
-				// if we aren't using reverse-proxy auth, check the auth token
-				r.Use(middleware.SimpleTokenAuth(cfg.Token))
-			}
-
-			// TODO:AUTH
-			// currently used in the frontend to verify
-			// no rate limits, checks, etc in place so likely to require
-			// refactoring when authn/authz is properly added
-			r.Post("/login", func(w http.ResponseWriter, r *http.Request) {
-				// the middleware already catches token errors, so we can
-				// just return a HTTP 200 here.
-				w.WriteHeader(http.StatusOK)
-			})
+			// these routes are protected via reverse-proxy auth
 
 			r.Route("/alerts", func(r chi.Router) {
 				r.Get("/", handlers.ListAlerts)
