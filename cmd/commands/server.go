@@ -20,14 +20,15 @@ import (
 
 // ServerCommand configuration object
 type ServerCommand struct {
-	RootConfig      *RootConfig
-	Out             io.Writer
-	Host            string
-	Token           string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	ShutdownTimeout time.Duration
-	Demo            bool
+	RootConfig       *RootConfig
+	Out              io.Writer
+	Host             string
+	Token            string
+	ReadTimeout      time.Duration
+	WriteTimeout     time.Duration
+	ShutdownTimeout  time.Duration
+	Demo             bool
+	ProxyAuthEnabled bool
 }
 
 // NewServerCommand creates a new ffcli.Command
@@ -44,6 +45,7 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 	fs.DurationVar(&cfg.WriteTimeout, "write-timeout", 5*time.Second, "server write timeout duration (can be set via IAMZERO_WRITE_TIMEOUT env var)")
 	fs.DurationVar(&cfg.ShutdownTimeout, "shutdown-timeout", 5*time.Second, "server shutdown timeout duration (can be set via IAMZERO_SHUTDOWN_TIMEOUT env var)")
 	fs.StringVar(&cfg.Token, "token", "", "authentication token (can be set via IAMZERO_TOKEN env var)")
+	fs.BoolVar(&cfg.ProxyAuthEnabled, "proxy-auth-enabled", false, "use a reverse proxy to handle user authentication")
 	rootConfig.RegisterFlags(fs)
 
 	return &ffcli.Command{
@@ -82,10 +84,11 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	apiConfig := server.APIConfig{
-		Shutdown: shutdown,
-		Log:      log,
-		Demo:     c.Demo,
-		Token:    c.Token,
+		Shutdown:         shutdown,
+		Log:              log,
+		Demo:             c.Demo,
+		Token:            c.Token,
+		ProxyAuthEnabled: c.ProxyAuthEnabled,
 	}
 
 	api := http.Server{

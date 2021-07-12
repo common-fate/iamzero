@@ -16,10 +16,11 @@ import (
 
 // APIConfig is the configuration struct to build the API handlers
 type APIConfig struct {
-	Shutdown chan os.Signal
-	Log      *zap.SugaredLogger
-	Token    string
-	Demo     bool
+	Shutdown         chan os.Signal
+	Log              *zap.SugaredLogger
+	Token            string
+	Demo             bool
+	ProxyAuthEnabled bool
 }
 
 // API constructs an http.Handler with all application routes defined.
@@ -45,7 +46,19 @@ func API(cfg *APIConfig) http.Handler {
 		r.Use(middleware.Logger(cfg.Log.Desugar()))
 		r.Use(chiMiddleware.Recoverer)
 		r.Use(chiMiddleware.Timeout(60 * time.Second))
-		r.Use(middleware.SimpleTokenAuth(cfg.Token))
+
+		r.Group(func(r chi.Router) {
+			// check the token for the event collector endpoint, even if reverse-proxy auth is enabled
+			r.Use(middleware.SimpleTokenAuth(cfg.Token))
+			r.Route("/events", func(r chi.Router) {
+				r.Post("/", handlers.CreateEventBatch)
+			})
+		})
+
+		if !cfg.ProxyAuthEnabled {
+			// if we aren't using reverse-proxy auth, check the auth token
+			r.Use(middleware.SimpleTokenAuth(cfg.Token))
+		}
 
 		// TODO:AUTH
 		// currently used in the frontend to verify
@@ -55,10 +68,6 @@ func API(cfg *APIConfig) http.Handler {
 			// the middleware already catches token errors, so we can
 			// just return a HTTP 200 here.
 			w.WriteHeader(http.StatusOK)
-		})
-
-		r.Route("/events", func(r chi.Router) {
-			r.Post("/", handlers.CreateEventBatch)
 		})
 
 		r.Route("/alerts", func(r chi.Router) {
