@@ -18,6 +18,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// overriden by build flags
+var version string
+
 // ServerCommand configuration object
 type ServerCommand struct {
 	RootConfig       *RootConfig
@@ -71,7 +74,8 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 		syslog.Fatal("IAMZERO_TOKEN variable must be provided")
 	}
 
-	log := logProd.Sugar()
+	log := logProd.Sugar().With("ver", version)
+
 	defer func() {
 		err = log.Sync()
 	}()
