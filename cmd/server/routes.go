@@ -52,7 +52,7 @@ func API(cfg *APIConfig) http.Handler {
 
 		r.Group(func(r chi.Router) {
 			// check the token for the event collector endpoint, even if reverse-proxy auth is enabled
-			r.Use(middleware.SimpleTokenAuth(cfg.Token))
+			r.Use(middleware.CollectorTokenAuth(cfg.TokenStore, cfg.Log))
 			r.Route("/events", func(r chi.Router) {
 				r.Post("/", handlers.CreateEventBatch)
 			})

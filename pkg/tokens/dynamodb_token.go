@@ -42,6 +42,9 @@ func (s *DynamoDBTokenStorer) Create(ctx context.Context, name string) (*Token, 
 	}
 
 	putItem, err := attributevalue.MarshalMap(token)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling item")
+	}
 
 	_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{TableName: &s.tableName, Item: putItem})
 	if err != nil {
@@ -72,9 +75,8 @@ func (s *DynamoDBTokenStorer) Get(ctx context.Context, id string) (*Token, error
 		Key: map[string]types.AttributeValue{
 			"id": &types.AttributeValueMemberS{Value: id},
 		},
-		TableName:            &s.tableName,
-		ConsistentRead:       aws.Bool(true),
-		ProjectionExpression: aws.String("id, name"),
+		TableName:      &s.tableName,
+		ConsistentRead: aws.Bool(true),
 	}
 
 	getItemResponse, err := s.client.GetItem(ctx, getItemInput)
@@ -84,7 +86,7 @@ func (s *DynamoDBTokenStorer) Get(ctx context.Context, id string) (*Token, error
 	}
 
 	if getItemResponse.Item == nil {
-		return nil, errors.New("token not found")
+		return nil, ErrTokenNotFound
 	}
 
 	var token Token
