@@ -70,3 +70,8 @@ export interface UnhandledAlert {
 }
 
 export type Alert = AlertWithRecommendations | UnhandledAlert;
+
+export interface Token {
+  id: string;
+  name: string;
+}

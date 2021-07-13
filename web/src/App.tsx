@@ -10,6 +10,7 @@ import { SWRConfig } from "swr";
 import { fetchWithAuth } from "./api";
 import Layout from "./layouts/Layout";
 import Alerts from "./pages/Alerts";
+import Tokens from "./pages/Tokens";
 
 function App() {
   return (
@@ -22,6 +23,9 @@ function App() {
             </Route>
             <Route path="/alerts" exact>
               <Alerts />
+            </Route>
+            <Route path="/tokens" exact>
+              <Tokens />
             </Route>
             <Route path="/alerts/:alertId">
               <Alerts />

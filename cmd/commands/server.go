@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/common-fate/iamzero/cmd/server"
+	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/pkg/errors"
@@ -23,15 +24,17 @@ var version string
 
 // ServerCommand configuration object
 type ServerCommand struct {
-	RootConfig       *RootConfig
-	Out              io.Writer
-	Host             string
-	Token            string
-	ReadTimeout      time.Duration
-	WriteTimeout     time.Duration
-	ShutdownTimeout  time.Duration
-	Demo             bool
-	ProxyAuthEnabled bool
+	RootConfig                    *RootConfig
+	Out                           io.Writer
+	Host                          string
+	Token                         string
+	ReadTimeout                   time.Duration
+	WriteTimeout                  time.Duration
+	ShutdownTimeout               time.Duration
+	Demo                          bool
+	TokenStorageBackend           string
+	TokenStorageDynamoDBTableName string
+	ProxyAuthEnabled              bool
 }
 
 // NewServerCommand creates a new ffcli.Command
@@ -48,6 +51,8 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 	fs.DurationVar(&cfg.WriteTimeout, "write-timeout", 5*time.Second, "server write timeout duration (can be set via IAMZERO_WRITE_TIMEOUT env var)")
 	fs.DurationVar(&cfg.ShutdownTimeout, "shutdown-timeout", 5*time.Second, "server shutdown timeout duration (can be set via IAMZERO_SHUTDOWN_TIMEOUT env var)")
 	fs.StringVar(&cfg.Token, "token", "", "authentication token (can be set via IAMZERO_TOKEN env var)")
+	fs.StringVar(&cfg.TokenStorageBackend, "token-storage-backend", "dynamodb", "token storage backend (must be 'dynamodb' or 'inmemory')")
+	fs.StringVar(&cfg.TokenStorageDynamoDBTableName, "token-storage-dynamodb-table-name", "dynamodb", "the token storage table name (only for DynamoDB token storage backend)")
 	fs.BoolVar(&cfg.ProxyAuthEnabled, "proxy-auth-enabled", false, "use a reverse proxy to handle user authentication")
 	rootConfig.RegisterFlags(fs)
 
@@ -80,6 +85,15 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 		err = log.Sync()
 	}()
 
+	// Configure token storage
+	if c.TokenStorageBackend != "dynamodb" {
+		syslog.Fatalf("token storage backend %s is not supported", c.TokenStorageBackend)
+	}
+	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName)
+	if err != nil {
+		return err
+	}
+
 	// Start the application
 
 	// Make a channel to listen for an interrupt or terminate signal from the OS.
@@ -92,6 +106,7 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 		Log:              log,
 		Demo:             c.Demo,
 		Token:            c.Token,
+		TokenStore:       tokenStore,
 		ProxyAuthEnabled: c.ProxyAuthEnabled,
 	}
 

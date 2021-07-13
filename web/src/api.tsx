@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Alert } from "./api-types";
+import { Alert, Token } from "./api-types";
 
 /**
  * Adds the x-iamzero-token header to auth requests.
@@ -22,6 +22,31 @@ export const fetchWithAuth = (
     headers,
   });
 };
+
+export interface GetTokensResponse {
+  tokens: Token[];
+}
+
+export const useTokens = () => useSWR<GetTokensResponse>("/api/v1/tokens");
+
+export const deleteToken = (tokenId: string) =>
+  fetchWithAuth(`/api/v1/tokens/${tokenId}`, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
+  });
+
+export const createToken = (name: string) =>
+  fetchWithAuth(`/api/v1/tokens`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
+  });
 
 export const useAlerts = () =>
   useSWR<Alert[]>("/api/v1/alerts", {
