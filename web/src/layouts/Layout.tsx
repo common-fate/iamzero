@@ -1,6 +1,5 @@
-import { Flex, Link } from "@chakra-ui/react";
+import { Flex } from "@chakra-ui/react";
 import React from "react";
-import { useAuth } from "../context/authContext";
 import { SimpleNavbar } from "./SimpleNavbar";
 
 interface Props {
@@ -12,7 +11,7 @@ interface Props {
  * Layout composes SimpleNavbar and justifies children content
  */
 const Layout: React.FC<Props> = (props: Props) => {
-  const { logOut } = useAuth();
+  // const { logOut } = useAuth();
   return (
     <Flex minH="100vh" w="100vw" overflowX="hidden">
       <SimpleNavbar
@@ -23,7 +22,7 @@ const Layout: React.FC<Props> = (props: Props) => {
             path: "/",
           },
         ]}
-        ctaItems={[<Link onClick={logOut}>Log Out</Link>]}
+        // ctaItems={[<Link onClick={logOut}>Log Out</Link>]}
       />
       {/* mt 4.5 is needed to offset the navbar */}
       <Flex

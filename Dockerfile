@@ -27,11 +27,13 @@ RUN go mod download
 # copy built frontend static files
 COPY --from=frontend_builder ./app/build ./web/build
 
+ARG VERSION
+
 # add all other folders required for the Go build
 COPY . .
 COPY web/build.go web/build.go
 
-RUN go build -o bin/iamzero-server cmd/main.go
+RUN go build -ldflags "-X commands.version=$VERSION" -o bin/iamzero-server cmd/main.go
 
 FROM alpine:3.13.5
 
