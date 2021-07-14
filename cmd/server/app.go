@@ -13,7 +13,6 @@ import (
 // object for each of our http handlers.
 type App struct {
 	*chi.Mux
-	// och      *ochttp.Handler,
 	shutdown chan os.Signal
 }
 
@@ -23,12 +22,6 @@ func NewApp(shutdown chan os.Signal, log *zap.SugaredLogger) *App {
 		Mux:      chi.NewRouter(),
 		shutdown: shutdown,
 	}
-
-	// tracing with jaeger or opentracing can be added here
-	// app.och = &ochttp.Handler{
-	// 	Handler:     app.Mux,
-	// 	Propagation: &tracecontext.HTTPFormat{},
-	// }
 
 	return &app
 }

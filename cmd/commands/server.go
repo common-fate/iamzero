@@ -12,10 +12,13 @@ import (
 	"time"
 
 	"github.com/common-fate/iamzero/cmd/server"
+	"github.com/common-fate/iamzero/internal/tracing"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
@@ -83,13 +86,30 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 
 	defer func() {
 		err = log.Sync()
+		if err != nil {
+			syslog.Fatalf("error closing log: %v", err)
+		}
 	}()
+
+	traceProvider, err := tracing.NewTracingService(ctx, log)
+	if err != nil {
+		syslog.Fatalf("can't initialize tracing service: %v", err)
+	}
+
+	defer func() {
+		err = traceProvider.Shutdown(ctx)
+		if err != nil {
+			syslog.Fatalf("error shutting down tracer: %v", err)
+		}
+	}()
+
+	tracer := otel.Tracer("iamzero.dev/server")
 
 	// Configure token storage
 	if c.TokenStorageBackend != "dynamodb" {
 		syslog.Fatalf("token storage backend %s is not supported", c.TokenStorageBackend)
 	}
-	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName, log)
+	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName, log, tracer)
 	if err != nil {
 		return err
 	}
@@ -104,15 +124,19 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 	apiConfig := server.APIConfig{
 		Shutdown:         shutdown,
 		Log:              log,
+		Tracer:           tracer,
 		Demo:             c.Demo,
 		Token:            c.Token,
 		TokenStore:       tokenStore,
 		ProxyAuthEnabled: c.ProxyAuthEnabled,
 	}
 
+	handler := server.API(&apiConfig)
+	handler = otelhttp.NewHandler(handler, "http.request")
+
 	api := http.Server{
 		Addr:         c.Host,
-		Handler:      server.API(&apiConfig),
+		Handler:      handler,
 		ReadTimeout:  c.ReadTimeout,
 		WriteTimeout: c.WriteTimeout,
 	}
