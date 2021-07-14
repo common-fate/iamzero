@@ -8,6 +8,7 @@ import (
 	"github.com/common-fate/iamzero/api"
 	"github.com/common-fate/iamzero/internal/middleware"
 	"github.com/common-fate/iamzero/pkg/storage"
+	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/common-fate/iamzero/web"
 	"github.com/go-chi/chi"
 	chiMiddleware "github.com/go-chi/chi/middleware"
@@ -18,6 +19,7 @@ import (
 type APIConfig struct {
 	Shutdown         chan os.Signal
 	Log              *zap.SugaredLogger
+	TokenStore       tokens.TokenStorer
 	Token            string
 	Demo             bool
 	ProxyAuthEnabled bool
@@ -34,9 +36,10 @@ func API(cfg *APIConfig) http.Handler {
 	app.Get("/api/v1/health", check.Health)
 
 	handlers := api.Handlers{
-		Log:     cfg.Log,
-		Demo:    cfg.Demo,
-		Storage: storage.NewAlertStorage(),
+		Log:        cfg.Log,
+		Demo:       cfg.Demo,
+		TokenStore: cfg.TokenStore,
+		Storage:    storage.NewAlertStorage(),
 	}
 
 	// Main application routes
@@ -49,7 +52,7 @@ func API(cfg *APIConfig) http.Handler {
 
 		r.Group(func(r chi.Router) {
 			// check the token for the event collector endpoint, even if reverse-proxy auth is enabled
-			r.Use(middleware.SimpleTokenAuth(cfg.Token))
+			r.Use(middleware.CollectorTokenAuth(cfg.TokenStore, cfg.Log))
 			r.Route("/events", func(r chi.Router) {
 				r.Post("/", handlers.CreateEventBatch)
 			})
@@ -57,6 +60,12 @@ func API(cfg *APIConfig) http.Handler {
 
 		r.Group(func(r chi.Router) {
 			// these routes are protected via reverse-proxy auth
+
+			r.Route("/tokens", func(r chi.Router) {
+				r.Get("/", handlers.ListTokens)
+				r.Post("/", handlers.CreateToken)
+				r.Delete("/{tokenID}", handlers.DeleteToken)
+			})
 
 			r.Route("/alerts", func(r chi.Router) {
 				r.Get("/", handlers.ListAlerts)

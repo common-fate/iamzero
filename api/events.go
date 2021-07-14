@@ -8,15 +8,17 @@ import (
 	"github.com/common-fate/iamzero/pkg/events"
 	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/common-fate/iamzero/pkg/storage"
+	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 // Handlers is the configuration for the handlers with required objects
 type Handlers struct {
-	Log     *zap.SugaredLogger
-	Storage storage.AlertStorage
-	Demo    bool
+	Log        *zap.SugaredLogger
+	TokenStore tokens.TokenStorer
+	Storage    storage.AlertStorage
+	Demo       bool
 }
 
 type CreateEventBatchResponse struct {

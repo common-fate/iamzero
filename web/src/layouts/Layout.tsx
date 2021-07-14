@@ -21,6 +21,10 @@ const Layout: React.FC<Props> = (props: Props) => {
             text: "Alerts",
             path: "/",
           },
+          {
+            text: "Tokens",
+            path: "/tokens",
+          },
         ]}
         // ctaItems={[<Link onClick={logOut}>Log Out</Link>]}
       />
