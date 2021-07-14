@@ -89,7 +89,7 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 	if c.TokenStorageBackend != "dynamodb" {
 		syslog.Fatalf("token storage backend %s is not supported", c.TokenStorageBackend)
 	}
-	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName)
+	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName, log)
 	if err != nil {
 		return err
 	}

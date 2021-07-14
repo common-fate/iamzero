@@ -10,27 +10,31 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/common-fate/iamzero/pkg/crypto"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 // DynamoDBTokenStorer is a token storage backend which uses DynamoDB
 type DynamoDBTokenStorer struct {
+	log       *zap.SugaredLogger
 	client    *dynamodb.Client
 	tableName string
 }
 
 // NewDynamoDBTokenStorer initialises the AWS DynamoDB client and returns a new DynamoDBTokenStorer
-func NewDynamoDBTokenStorer(ctx context.Context, tableName string) (*DynamoDBTokenStorer, error) {
+func NewDynamoDBTokenStorer(ctx context.Context, tableName string, log *zap.SugaredLogger) (*DynamoDBTokenStorer, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
-	return &DynamoDBTokenStorer{client, tableName}, nil
+	return &DynamoDBTokenStorer{log, client, tableName}, nil
 }
 
 // Create a Token and store it in the database
 func (s *DynamoDBTokenStorer) Create(ctx context.Context, name string) (*Token, error) {
+	s.log.With("table", s.tableName).Info("creating token")
+
 	ID, err := crypto.GenerateRandomToken()
 	if err != nil {
 		return nil, errors.Wrap(err, "generating token")
@@ -56,6 +60,7 @@ func (s *DynamoDBTokenStorer) Create(ctx context.Context, name string) (*Token, 
 
 // Delete a token from the database
 func (s *DynamoDBTokenStorer) Delete(ctx context.Context, id string) error {
+	s.log.With("table", s.tableName).Info("deleting token")
 
 	input := &dynamodb.DeleteItemInput{
 		TableName: &s.tableName,
@@ -104,6 +109,8 @@ func (s *DynamoDBTokenStorer) Get(ctx context.Context, id string) (*Token, error
 // To improve performance moving forwards to a production ready service
 // we should paginate this and use Query instead.
 func (s *DynamoDBTokenStorer) List(ctx context.Context) ([]Token, error) {
+	s.log.With("table", s.tableName).Info("listing tokens")
+
 	input := &dynamodb.ScanInput{
 		TableName: &s.tableName,
 	}
