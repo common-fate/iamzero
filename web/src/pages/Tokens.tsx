@@ -1,4 +1,4 @@
-import { AddIcon, PlusSquareIcon } from "@chakra-ui/icons";
+import { AddIcon } from "@chakra-ui/icons";
 import { Stack } from "@chakra-ui/layout";
 import {
   Box,
