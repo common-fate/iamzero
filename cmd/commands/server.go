@@ -94,15 +94,13 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 		}
 	}()
 
-	var traceProvider trace.TracerProvider
 	var tracer trace.Tracer
 
 	if c.TracingEnabled {
-		traceProvider, err = tracing.NewTracingService(ctx, log)
+		err = tracing.NewTracingService(ctx, log)
 		tracer = otel.Tracer("iamzero.dev/server")
 	} else {
-		traceProvider = trace.NewNoopTracerProvider()
-		tracer = traceProvider.Tracer("")
+		tracer = trace.NewNoopTracerProvider().Tracer("")
 	}
 
 	if err != nil {
