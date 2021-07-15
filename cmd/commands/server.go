@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -38,6 +39,7 @@ type ServerCommand struct {
 	TokenStorageBackend           string
 	TokenStorageDynamoDBTableName string
 	ProxyAuthEnabled              bool
+	TracingEnabled                bool
 }
 
 // NewServerCommand creates a new ffcli.Command
@@ -57,6 +59,7 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 	fs.StringVar(&cfg.TokenStorageBackend, "token-storage-backend", "dynamodb", "token storage backend (must be 'dynamodb' or 'inmemory')")
 	fs.StringVar(&cfg.TokenStorageDynamoDBTableName, "token-storage-dynamodb-table-name", "dynamodb", "the token storage table name (only for DynamoDB token storage backend)")
 	fs.BoolVar(&cfg.ProxyAuthEnabled, "proxy-auth-enabled", false, "use a reverse proxy to handle user authentication")
+	fs.BoolVar(&cfg.TracingEnabled, "tracing-enabled", false, "enable OpenTelemetry tracing")
 	rootConfig.RegisterFlags(fs)
 
 	return &ffcli.Command{
@@ -91,19 +94,20 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 		}
 	}()
 
-	traceProvider, err := tracing.NewTracingService(ctx, log)
+	var traceProvider trace.TracerProvider
+	var tracer trace.Tracer
+
+	if c.TracingEnabled {
+		traceProvider, err = tracing.NewTracingService(ctx, log)
+		tracer = otel.Tracer("iamzero.dev/server")
+	} else {
+		traceProvider = trace.NewNoopTracerProvider()
+		tracer = traceProvider.Tracer("")
+	}
+
 	if err != nil {
 		syslog.Fatalf("can't initialize tracing service: %v", err)
 	}
-
-	defer func() {
-		err = traceProvider.Shutdown(ctx)
-		if err != nil {
-			syslog.Fatalf("error shutting down tracer: %v", err)
-		}
-	}()
-
-	tracer := otel.Tracer("iamzero.dev/server")
 
 	// Configure token storage
 	if c.TokenStorageBackend != "dynamodb" {

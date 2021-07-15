@@ -10,16 +10,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
-// Tracing is a service which provides observability such as traces in the application
-type TracingService struct {
-	provider *sdktrace.TracerProvider
-}
-
-func NewTracingService(ctx context.Context, log *zap.SugaredLogger) (*TracingService, error) {
+func NewTracingService(ctx context.Context, log *zap.SugaredLogger) (trace.TracerProvider, error) {
 	endpoint := "localhost:4317"
 	log.With("oltpEndpoint", endpoint).Info("configuring tracing")
 	res, err := resource.New(ctx,
@@ -55,10 +51,10 @@ func NewTracingService(ctx context.Context, log *zap.SugaredLogger) (*TracingSer
 	// set global propagator to tracecontext (the default is no-op).
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
-	return &TracingService{tracerProvider}, nil
+	return tracerProvider, nil
 }
 
-// Shutdown must be called by the server before shutting down to send any remaining traces and close the connection
-func (t *TracingService) Shutdown(ctx context.Context) error {
-	return t.provider.Shutdown(ctx)
-}
+// // Shutdown must be called by the server before shutting down to send any remaining traces and close the connection
+// func (t *TracingService) Shutdown(ctx context.Context) error {
+// 	return t.provider.Shutdown(ctx)
+// }
