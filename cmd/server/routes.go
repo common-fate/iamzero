@@ -12,6 +12,8 @@ import (
 	"github.com/common-fate/iamzero/web"
 	"github.com/go-chi/chi"
 	chiMiddleware "github.com/go-chi/chi/middleware"
+
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +21,7 @@ import (
 type APIConfig struct {
 	Shutdown         chan os.Signal
 	Log              *zap.SugaredLogger
+	Tracer           trace.Tracer
 	TokenStore       tokens.TokenStorer
 	Token            string
 	Demo             bool
@@ -49,6 +52,7 @@ func API(cfg *APIConfig) http.Handler {
 		r.Use(middleware.Logger(cfg.Log.Desugar()))
 		r.Use(chiMiddleware.Recoverer)
 		r.Use(chiMiddleware.Timeout(60 * time.Second))
+		r.Use(middleware.Tracing)
 
 		r.Group(func(r chi.Router) {
 			// check the token for the event collector endpoint, even if reverse-proxy auth is enabled

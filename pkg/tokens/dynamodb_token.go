@@ -10,25 +10,27 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/common-fate/iamzero/pkg/crypto"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
 // DynamoDBTokenStorer is a token storage backend which uses DynamoDB
 type DynamoDBTokenStorer struct {
 	log       *zap.SugaredLogger
+	tracer    trace.Tracer
 	client    *dynamodb.Client
 	tableName string
 }
 
 // NewDynamoDBTokenStorer initialises the AWS DynamoDB client and returns a new DynamoDBTokenStorer
-func NewDynamoDBTokenStorer(ctx context.Context, tableName string, log *zap.SugaredLogger) (*DynamoDBTokenStorer, error) {
+func NewDynamoDBTokenStorer(ctx context.Context, tableName string, log *zap.SugaredLogger, tracer trace.Tracer) (*DynamoDBTokenStorer, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
-	return &DynamoDBTokenStorer{log, client, tableName}, nil
+	return &DynamoDBTokenStorer{log, tracer, client, tableName}, nil
 }
 
 // Create a Token and store it in the database
@@ -110,6 +112,8 @@ func (s *DynamoDBTokenStorer) Get(ctx context.Context, id string) (*Token, error
 // we should paginate this and use Query instead.
 func (s *DynamoDBTokenStorer) List(ctx context.Context) ([]Token, error) {
 	s.log.With("table", s.tableName).Info("listing tokens")
+	ctx, span := s.tracer.Start(ctx, "DynamoDBTokenStorer.List")
+	defer span.End()
 
 	input := &dynamodb.ScanInput{
 		TableName: &s.tableName,

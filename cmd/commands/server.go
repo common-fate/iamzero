@@ -12,10 +12,14 @@ import (
 	"time"
 
 	"github.com/common-fate/iamzero/cmd/server"
+	"github.com/common-fate/iamzero/internal/tracing"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -35,6 +39,7 @@ type ServerCommand struct {
 	TokenStorageBackend           string
 	TokenStorageDynamoDBTableName string
 	ProxyAuthEnabled              bool
+	TracingEnabled                bool
 }
 
 // NewServerCommand creates a new ffcli.Command
@@ -54,6 +59,7 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 	fs.StringVar(&cfg.TokenStorageBackend, "token-storage-backend", "dynamodb", "token storage backend (must be 'dynamodb' or 'inmemory')")
 	fs.StringVar(&cfg.TokenStorageDynamoDBTableName, "token-storage-dynamodb-table-name", "dynamodb", "the token storage table name (only for DynamoDB token storage backend)")
 	fs.BoolVar(&cfg.ProxyAuthEnabled, "proxy-auth-enabled", false, "use a reverse proxy to handle user authentication")
+	fs.BoolVar(&cfg.TracingEnabled, "tracing-enabled", false, "enable OpenTelemetry tracing")
 	rootConfig.RegisterFlags(fs)
 
 	return &ffcli.Command{
@@ -83,13 +89,29 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 
 	defer func() {
 		err = log.Sync()
+		if err != nil {
+			syslog.Fatalf("error closing log: %v", err)
+		}
 	}()
+
+	var tracer trace.Tracer
+
+	if c.TracingEnabled {
+		err = tracing.NewTracingService(ctx, log)
+		tracer = otel.Tracer("iamzero.dev/server")
+	} else {
+		tracer = trace.NewNoopTracerProvider().Tracer("")
+	}
+
+	if err != nil {
+		syslog.Fatalf("can't initialize tracing service: %v", err)
+	}
 
 	// Configure token storage
 	if c.TokenStorageBackend != "dynamodb" {
 		syslog.Fatalf("token storage backend %s is not supported", c.TokenStorageBackend)
 	}
-	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName, log)
+	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName, log, tracer)
 	if err != nil {
 		return err
 	}
@@ -104,15 +126,19 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 	apiConfig := server.APIConfig{
 		Shutdown:         shutdown,
 		Log:              log,
+		Tracer:           tracer,
 		Demo:             c.Demo,
 		Token:            c.Token,
 		TokenStore:       tokenStore,
 		ProxyAuthEnabled: c.ProxyAuthEnabled,
 	}
 
+	handler := server.API(&apiConfig)
+	handler = otelhttp.NewHandler(handler, "http.request")
+
 	api := http.Server{
 		Addr:         c.Host,
-		Handler:      server.API(&apiConfig),
+		Handler:      handler,
 		ReadTimeout:  c.ReadTimeout,
 		WriteTimeout: c.WriteTimeout,
 	}
