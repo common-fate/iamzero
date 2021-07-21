@@ -1,7 +1,6 @@
 import { Stack } from "@chakra-ui/layout";
 import {
   Container,
-  Spinner,
   Tab,
   TabList,
   TabPanel,

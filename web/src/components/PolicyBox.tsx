@@ -1,9 +1,8 @@
 import { Flex, Heading, Stack, Text } from "@chakra-ui/layout";
-import React from "react";
-import { format } from "timeago.js";
-import { Policy } from "../api-types";
-import { FaUserAlt } from "react-icons/fa";
 import { Badge, Box, Icon } from "@chakra-ui/react";
+import React from "react";
+import { FaUserAlt } from "react-icons/fa";
+import { Policy } from "../api-types";
 import { getEventCountString } from "../utils/getEventCountString";
 import { RelativeDateText } from "./LastUpdatedText";
 
