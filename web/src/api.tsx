@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Alert, Token } from "./api-types";
+import { Action, Policy, Token } from "./api-types";
 
 /**
  * Adds the x-iamzero-token header to auth requests.
@@ -49,8 +49,21 @@ export const createToken = (name: string) =>
   });
 
 export const useAlerts = () =>
-  useSWR<Alert[]>("/api/v1/alerts", {
+  useSWR<Action[]>("/api/v1/alerts", {
     refreshInterval: 10000,
+    revalidateOnFocus: true,
+  });
+
+export const usePolicies = () =>
+  useSWR<Policy[]>("/api/v1/policies", {
+    revalidateOnFocus: true,
+  });
+
+export const usePolicy = (policyId: string | null) =>
+  useSWR<Policy>(policyId ? `/api/v1/policies/${policyId}` : null);
+
+export const useActionsForPolicy = (policyId: string | null) =>
+  useSWR<Action[]>(policyId ? `/api/v1/policies/${policyId}/actions` : null, {
     revalidateOnFocus: true,
   });
 

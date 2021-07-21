@@ -20,7 +20,6 @@ export interface AWSData {
 export interface AWSIdentity {
   user: string;
   role: string;
-  arn: string;
   account: string;
 }
 
@@ -51,7 +50,7 @@ export interface AWSIAMStatement {
 export type AlertStatus = "active" | "fixed" | "applying" | "ignored";
 
 /** An alert that iam-zero has generated recommendations for */
-export interface AlertWithRecommendations {
+export interface ActionWithRecommendations {
   id: string;
   event: Event;
   time: Date;
@@ -61,7 +60,7 @@ export interface AlertWithRecommendations {
 }
 
 /** An alert that we do not yet handle and haven't generated recommendations for */
-export interface UnhandledAlert {
+export interface UnhandledAction {
   id: string;
   event: Event;
   time: Date;
@@ -70,7 +69,7 @@ export interface UnhandledAlert {
   hasRecommendations: false;
 }
 
-export type Alert = AlertWithRecommendations | UnhandledAlert;
+export type Action = ActionWithRecommendations | UnhandledAction;
 
 export interface Token {
   id: string;

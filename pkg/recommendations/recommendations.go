@@ -1,46 +1,5 @@
 package recommendations
 
-import (
-	"time"
-
-	"github.com/common-fate/iamzero/pkg/events"
-	"go.uber.org/zap"
-)
-
-// AdviceFactory generates Advice based on a provided event
-type AdviceFactory = func(e events.AWSEvent) (Advice, error)
-
-type Advisor struct {
-	AlertsMapping map[string][]AdviceFactory
-}
-
-type AWSAlert struct {
-	ID                 string          `json:"id"`
-	Event              events.AWSEvent `json:"event"`
-	Status             string          `json:"status"`
-	Time               time.Time       `json:"time"`
-	Recommendations    []Advice        `json:"recommendations"`
-	HasRecommendations bool            `json:"hasRecommendations"`
-}
-
-type Description struct {
-	AppliedTo string
-	Type      string
-	Policy    interface{}
-}
-
-type RecommendationDetails struct {
-	ID          string
-	Comment     string
-	Description []Description
-}
-
-type Advice interface {
-	Apply(log *zap.SugaredLogger) error
-	GetID() string
-	Details() RecommendationDetails
-}
-
 func NewAdvisor() *Advisor {
 	return &Advisor{
 		AlertsMapping: map[string][]AdviceFactory{
@@ -186,7 +145,7 @@ func NewAdvisor() *Advisor {
 	}
 }
 
-func (a *Advisor) Advise(e events.AWSEvent) ([]Advice, error) {
+func (a *Advisor) Advise(e AWSEvent) ([]Advice, error) {
 	key := e.Data.Service + ":" + e.Data.Operation
 
 	adviceBuilders := a.AlertsMapping[key]

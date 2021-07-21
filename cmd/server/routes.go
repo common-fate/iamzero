@@ -39,10 +39,11 @@ func API(cfg *APIConfig) http.Handler {
 	app.Get("/api/v1/health", check.Health)
 
 	handlers := api.Handlers{
-		Log:        cfg.Log,
-		Demo:       cfg.Demo,
-		TokenStore: cfg.TokenStore,
-		Storage:    storage.NewAlertStorage(),
+		Log:           cfg.Log,
+		Demo:          cfg.Demo,
+		TokenStore:    cfg.TokenStore,
+		ActionStorage: storage.NewAlertStorage(),
+		PolicyStorage: storage.NewPolicyStorage(),
 	}
 
 	// Main application routes
@@ -77,6 +78,12 @@ func API(cfg *APIConfig) http.Handler {
 				r.Route("/{alertID}", func(r chi.Router) {
 					r.Post("/review", handlers.ReviewAlert)
 				})
+			})
+
+			r.Route("/policies", func(r chi.Router) {
+				r.Get("/", handlers.ListPolicies)
+				r.Get("/{policyID}", handlers.GetPolicy)
+				r.Get("/{policyID}/actions", handlers.ListActionsForPolicy)
 			})
 		})
 	})

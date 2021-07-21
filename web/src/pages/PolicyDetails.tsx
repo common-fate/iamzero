@@ -1,4 +1,4 @@
-import { CheckIcon, CopyIcon, InfoOutlineIcon } from "@chakra-ui/icons";
+import { InfoOutlineIcon } from "@chakra-ui/icons";
 import {
   Badge,
   Box,
@@ -11,7 +11,6 @@ import {
   Flex,
   Heading,
   HStack,
-  Icon,
   IconButton,
   Select,
   Stack,
@@ -25,21 +24,27 @@ import {
   useClipboard,
 } from "@chakra-ui/react";
 import React, { useState } from "react";
-import { Alert } from "../api-types";
+import { Link as RouterLink, useParams } from "react-router-dom";
+import { useActionsForPolicy, usePolicy } from "../api";
+import { Action } from "../api-types";
+import { CenteredSpinner } from "../components/CenteredSpinner";
 import { KeyValueBadge } from "../components/KeyValueBadge";
+import { RelativeDateText } from "../components/LastUpdatedText";
 import { S3Icon } from "../icons";
 import { getAlertTitle } from "../utils/getAlertTitle";
+import { getEventCountString } from "../utils/getEventCountString";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
-import { MOCK_ACTIONS, MOCK_POLICIES, MOCK_RESOURCES } from "./Policies";
-import { Link as RouterLink } from "react-router-dom";
-import { format } from "timeago.js";
+import { MOCK_RESOURCES } from "./Policies";
 
 const PolicyDetails: React.FC = () => {
-  const policy = MOCK_POLICIES[0];
-  const actions: Alert[] = MOCK_ACTIONS;
+  const { policyId } = useParams<{ policyId: string }>();
+  const { data: policy } = usePolicy(policyId);
+  const { data: actions } = useActionsForPolicy(policyId);
   const { hasCopied, onCopy } = useClipboard(JSON.stringify(policy, null, 2));
 
   const [selectedStatement, setSelectedStatement] = useState<string>();
+
+  if (policy === undefined || actions === undefined) return <CenteredSpinner />;
 
   return (
     <Flex flexGrow={1}>
@@ -70,13 +75,13 @@ const PolicyDetails: React.FC = () => {
               <Heading size="md">{policy.identity.role}</Heading>
               <HStack align="flex-end" spacing={5}>
                 <Box>
-                  <Badge>{policy.eventCount} events</Badge>
+                  <Badge>{getEventCountString(policy.eventCount)}</Badge>
                 </Box>
-                <Text textAlign="right">{format(policy.lastUpdated)}</Text>
+                <RelativeDateText textAlign="right" date={policy.lastUpdated} />
               </HStack>
             </Flex>
             <Stack direction="row" wrap="wrap" spacing={3}>
-              <KeyValueBadge label="Role ARN" value={policy.identity.arn} />
+              <KeyValueBadge label="Role ARN" value={policy.identity.role} />
               <KeyValueBadge label="Account" value={policy.identity.account} />
               <KeyValueBadge label="Token" value={policy.token.name} />
             </Stack>
@@ -208,7 +213,7 @@ const PolicyDetails: React.FC = () => {
 };
 
 interface ActionDisplayProps {
-  action: Alert;
+  action: Action;
   onMouseOver?: () => void;
   onMouseOut?: () => void;
 }

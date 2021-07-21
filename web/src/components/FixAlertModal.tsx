@@ -22,13 +22,13 @@ import {
   Tr,
 } from "@chakra-ui/react";
 import React, { useState } from "react";
-import { AlertWithRecommendations, Recommendation } from "../api-types";
+import { ActionWithRecommendations, Recommendation } from "../api-types";
 import { getAlertTitle } from "../utils/getAlertTitle";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
 
 interface FixAlertModalProps {
   onClose: () => void;
-  alert: AlertWithRecommendations;
+  alert: ActionWithRecommendations;
   onApplyRecommendation?: (recommendationId: string) => void;
 }
 

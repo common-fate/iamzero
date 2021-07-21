@@ -3,12 +3,12 @@ import { Flex, Heading, HStack, Stack, Text } from "@chakra-ui/layout";
 import { Box } from "@chakra-ui/react";
 import React from "react";
 import { format } from "timeago.js";
-import { Alert } from "../api-types";
+import { Action } from "../api-types";
 import { getAlertTitle } from "../utils/getAlertTitle";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
 
 interface Props {
-  alert: Alert;
+  alert: Action;
 }
 
 export const AlertBox: React.FC<Props> = ({ alert, children }) => {

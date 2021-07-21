@@ -11,7 +11,6 @@ interface Props {
  * Layout composes SimpleNavbar and justifies children content
  */
 const Layout: React.FC<Props> = (props: Props) => {
-  // const { logOut } = useAuth();
   return (
     <Flex minH="100vh" w="100vw" overflowX="hidden">
       <SimpleNavbar

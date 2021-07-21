@@ -1,6 +1,7 @@
 import { Stack } from "@chakra-ui/layout";
 import {
   Container,
+  Spinner,
   Tab,
   TabList,
   TabPanel,
@@ -10,7 +11,9 @@ import {
 } from "@chakra-ui/react";
 import React from "react";
 import { useHistory } from "react-router-dom";
-import { Alert, Policy } from "../api-types";
+import { usePolicies } from "../api";
+import { Action, Policy } from "../api-types";
+import { CenteredSpinner } from "../components/CenteredSpinner";
 import { PolicyBox } from "../components/PolicyBox";
 
 export const MOCK_RESOURCES = [
@@ -22,7 +25,7 @@ export const MOCK_RESOURCES = [
   },
 ];
 
-export const MOCK_ACTIONS: Alert[] = [
+export const MOCK_ACTIONS: Action[] = [
   {
     id: "d6891731-1d01-4bac-9ed1-35c992d4fd99",
     event: {
@@ -100,24 +103,10 @@ export const MOCK_POLICIES: Policy[] = [
     id: "1",
     status: "active",
     identity: {
-      arn: "arn:aws:iam::123456789:role/iamzero-test-role",
       account: "123456789",
       user: "iamzero-test",
-      role: "iamzero-test",
+      role: "arn:aws:iam::123456789:role/iamzero-test-role",
     },
-    // actions: [
-    //   {
-    //     id: "1",
-    //     status: "active",
-    //     event: {
-    //       data: {
-    //         service: "dynamodb",
-    //         exceptionCode: "",
-
-    //       }
-    //     }
-    //   }
-    // ],
     eventCount: 31,
     lastUpdated: new Date(),
     token: {
@@ -142,10 +131,9 @@ export const MOCK_POLICIES: Policy[] = [
     id: "2",
     status: "active",
     identity: {
-      arn: "arn:aws:iam::123456789:role/iamzero-test-role",
       account: "123456789",
       user: "second-role",
-      role: "second-role",
+      role: "arn:aws:iam::123456789:role/iamzero-test-role",
     },
     eventCount: 5,
     lastUpdated: new Date(),
@@ -189,8 +177,12 @@ const Policies: React.FC = () => {
 };
 
 const PolicyList: React.FC = () => {
-  const data = MOCK_POLICIES;
+  const { data } = usePolicies();
   const history = useHistory();
+
+  if (data === undefined) {
+    return <CenteredSpinner />;
+  }
 
   if (data.length === 0)
     return <Text textAlign="center">No policies yet!</Text>;

@@ -4,6 +4,8 @@ import { format } from "timeago.js";
 import { Policy } from "../api-types";
 import { FaUserAlt } from "react-icons/fa";
 import { Badge, Box, Icon } from "@chakra-ui/react";
+import { getEventCountString } from "../utils/getEventCountString";
+import { RelativeDateText } from "./LastUpdatedText";
 
 interface Props {
   policy: Policy;
@@ -24,7 +26,7 @@ export const PolicyBox: React.FC<Props> = ({ policy, onClick }) => {
       borderColor="gray.300"
       borderWidth="thin"
     >
-      <Stack>
+      <Stack align="flex-start">
         <Heading size="sm" textAlign="left">
           {policy.identity.role}
         </Heading>
@@ -33,9 +35,9 @@ export const PolicyBox: React.FC<Props> = ({ policy, onClick }) => {
         </Text>
       </Stack>
       <Flex direction="column" justify="space-between" align="flex-end">
-        <Text textAlign="right">{format(policy.lastUpdated)}</Text>
+        <RelativeDateText textAlign="right" date={policy.lastUpdated} />
         <Box>
-          <Badge>{policy.eventCount} events</Badge>
+          <Badge>{getEventCountString(policy.eventCount)}</Badge>
         </Box>
       </Flex>
     </Flex>

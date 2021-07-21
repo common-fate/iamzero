@@ -7,16 +7,15 @@ import (
 	"time"
 
 	"github.com/common-fate/iamzero/api/io"
-	"github.com/common-fate/iamzero/pkg/events"
 	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/go-chi/chi"
 )
 
 type AlertResponse struct {
-	ID     string          `json:"id"`
-	Event  events.AWSEvent `json:"event"`
-	Status string          `json:"status"`
-	Time   time.Time       `json:"time"`
+	ID     string                   `json:"id"`
+	Event  recommendations.AWSEvent `json:"event"`
+	Status string                   `json:"status"`
+	Time   time.Time                `json:"time"`
 
 	Recommendations    []recommendations.RecommendationDetails `json:"recommendations"`
 	HasRecommendations bool                                    `json:"hasRecommendations"`
@@ -27,7 +26,7 @@ func (h *Handlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 
 	alertsResponse := []AlertResponse{}
 
-	alerts := h.Storage.List()
+	alerts := h.ActionStorage.List()
 
 	for _, alert := range alerts {
 		var detailsArr []recommendations.RecommendationDetails
@@ -67,14 +66,14 @@ func (h *Handlers) ReviewAlert(w http.ResponseWriter, r *http.Request) {
 
 	h.Log.With("body", b).Info("review alert")
 
-	alert := h.Storage.Get(alertID)
+	alert := h.ActionStorage.Get(alertID)
 	if alert == nil {
 		io.RespondText(ctx, h.Log, w, "alert not found", http.StatusNotFound)
 		return
 	}
 
 	if b.Decision == "apply" {
-		err := h.Storage.SetStatus(alertID, events.AlertApplying)
+		err := h.ActionStorage.SetStatus(alertID, recommendations.AlertApplying)
 		if err != nil {
 			io.RespondError(ctx, h.Log, w, errors.New("alert setstatus error"))
 		}
@@ -101,7 +100,7 @@ func (h *Handlers) ReviewAlert(w http.ResponseWriter, r *http.Request) {
 				io.RespondError(ctx, h.Log, w, errors.New("applier error"))
 			}
 
-			err = h.Storage.SetStatus(alertID, events.AlertFixed)
+			err = h.ActionStorage.SetStatus(alertID, recommendations.AlertFixed)
 			if err != nil {
 				io.RespondError(ctx, h.Log, w, errors.New("alert setstatus error"))
 			}
@@ -109,7 +108,7 @@ func (h *Handlers) ReviewAlert(w http.ResponseWriter, r *http.Request) {
 		return
 
 	} else if b.Decision == "ignore" {
-		err := h.Storage.SetStatus(alertID, events.AlertIgnored)
+		err := h.ActionStorage.SetStatus(alertID, recommendations.AlertIgnored)
 		if err != nil {
 			io.RespondError(ctx, h.Log, w, errors.New("alert setstatus error"))
 		}

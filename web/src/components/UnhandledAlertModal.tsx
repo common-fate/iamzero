@@ -13,12 +13,12 @@ import {
   Text,
 } from "@chakra-ui/react";
 import React from "react";
-import { UnhandledAlert } from "../api-types";
+import { UnhandledAction } from "../api-types";
 import { getAlertTitle } from "../utils/getAlertTitle";
 
 interface FixAlertModalProps {
   onClose: () => void;
-  alert: UnhandledAlert;
+  alert: UnhandledAction;
 }
 
 export const UnhandledAlertModal: React.FC<FixAlertModalProps> = ({

@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
-	"github.com/common-fate/iamzero/pkg/events"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -28,15 +27,15 @@ type Statement struct {
 
 type JSONAdvice struct {
 	ID        string
-	AWSPolicy events.AWSIAMPolicy
+	AWSPolicy AWSIAMPolicy
 	Comment   string
 	RoleName  string
 }
 
 func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
-	return func(e events.AWSEvent) (Advice, error) {
+	return func(e AWSEvent) (Advice, error) {
 
-		var iamStatements []events.AWSIAMStatement
+		var iamStatements []AWSIAMStatement
 
 		// extract variables from the API call to insert in our recommended policies
 		vars := e.Data.Parameters
@@ -65,7 +64,7 @@ func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
 				resources = append(resources, resBytes.String())
 			}
 
-			iamStatement := events.AWSIAMStatement{
+			iamStatement := AWSIAMStatement{
 
 				Sid:      "iamzero-" + uuid.NewString(),
 				Effect:   "Allow",
@@ -78,7 +77,7 @@ func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
 		id := uuid.NewString()
 
 		// build a recommended AWS policy
-		policy := events.AWSIAMPolicy{
+		policy := AWSIAMPolicy{
 			Version:   "2012-10-17",
 			Id:        &id,
 			Statement: iamStatements,

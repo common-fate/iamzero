@@ -15,7 +15,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { reviewAlert, useAlerts } from "../api";
-import { Alert } from "../api-types";
+import { Action } from "../api-types";
 import { AlertBox } from "../components/AlertBox";
 import { FixAlertModal } from "../components/FixAlertModal";
 import { UnhandledAlertModal } from "../components/UnhandledAlertModal";
@@ -46,7 +46,7 @@ const Alerts: React.FC = () => {
 const AlertList: React.FC = () => {
   const { data: apiData, revalidate } = useAlerts();
   const { alertId } = useParams<{ alertId: string }>();
-  const [selectedAlert, setSelectedAlert] = useState<Alert>();
+  const [selectedAlert, setSelectedAlert] = useState<Action>();
 
   // If the user visits /alerts/:alertId, show the modal for the
   // specified alert instantly.
