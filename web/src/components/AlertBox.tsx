@@ -35,7 +35,7 @@ export const AlertBox: React.FC<Props> = ({ alert, children }) => {
         </HStack>
         <HStack>
           <Avatar size="xs" />
-          <Text>{alert.event.identity.user}</Text>
+          {/* <Text>{alert.event.identity.user}</Text> */}
         </HStack>
       </Stack>
       <Flex direction="column" justify="space-between">

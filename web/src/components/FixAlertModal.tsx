@@ -54,9 +54,7 @@ export const FixAlertModal: React.FC<FixAlertModalProps> = ({
     <Modal isOpen={true} onClose={onClose} size="xl">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>
-          Granting {getAlertTitle(alert)} for {alert.event.identity.user}
-        </ModalHeader>
+        <ModalHeader>Granting {getAlertTitle(alert)}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <Stack spacing={5}>

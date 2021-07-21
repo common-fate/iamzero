@@ -10,28 +10,34 @@ import { SWRConfig } from "swr";
 import { fetchWithAuth } from "./api";
 import Layout from "./layouts/Layout";
 import Alerts from "./pages/Alerts";
+import Policies from "./pages/Policies";
+import PolicyDetails from "./pages/PolicyDetails";
 import Tokens from "./pages/Tokens";
 
 function App() {
   return (
     <AppProviders>
       <Layout>
-        <Container maxW="1200px" py={5}>
-          <Switch>
-            <Route path="/" exact>
-              <Redirect to="/alerts" />
-            </Route>
-            <Route path="/alerts" exact>
-              <Alerts />
-            </Route>
-            <Route path="/tokens" exact>
-              <Tokens />
-            </Route>
-            <Route path="/alerts/:alertId">
-              <Alerts />
-            </Route>
-          </Switch>
-        </Container>
+        <Switch>
+          <Route path="/" exact>
+            <Redirect to="/policies" />
+          </Route>
+          <Route path="/policies" exact>
+            <Policies />
+          </Route>
+          <Route path="/policies/:policyId">
+            <PolicyDetails />
+          </Route>
+          <Route path="/alerts" exact>
+            <Alerts />
+          </Route>
+          <Route path="/tokens" exact>
+            <Tokens />
+          </Route>
+          <Route path="/alerts/:alertId">
+            <Alerts />
+          </Route>
+        </Switch>
       </Layout>
     </AppProviders>
   );

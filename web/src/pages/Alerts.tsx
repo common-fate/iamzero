@@ -2,6 +2,7 @@ import { Stack } from "@chakra-ui/layout";
 import {
   Button,
   ButtonGroup,
+  Container,
   HStack,
   Spinner,
   Tab,
@@ -91,31 +92,33 @@ const AlertList: React.FC = () => {
 
   return (
     <>
-      <Stack>
-        {data.map((alert) => (
-          <AlertBox key={alert.id} alert={alert}>
-            {alert.status === "applying" && (
-              <HStack>
-                <Spinner size="xs" />
-                <Text>Applying...</Text>
-              </HStack>
-            )}
-            {alert.status === "active" && (
-              <ButtonGroup>
-                <Button onClick={() => onIgnoreRecommendation(alert.id)}>
-                  Ignore
-                </Button>
-                <Button
-                  onClick={() => setSelectedAlert(alert)}
-                  colorScheme="blue"
-                >
-                  Fix
-                </Button>
-              </ButtonGroup>
-            )}
-          </AlertBox>
-        ))}
-      </Stack>
+      <Container maxW="1200px" py={5}>
+        <Stack>
+          {data.map((alert) => (
+            <AlertBox key={alert.id} alert={alert}>
+              {alert.status === "applying" && (
+                <HStack>
+                  <Spinner size="xs" />
+                  <Text>Applying...</Text>
+                </HStack>
+              )}
+              {alert.status === "active" && (
+                <ButtonGroup>
+                  <Button onClick={() => onIgnoreRecommendation(alert.id)}>
+                    Ignore
+                  </Button>
+                  <Button
+                    onClick={() => setSelectedAlert(alert)}
+                    colorScheme="blue"
+                  >
+                    Fix
+                  </Button>
+                </ButtonGroup>
+              )}
+            </AlertBox>
+          ))}
+        </Stack>
+      </Container>
       {/* Modal for alerts which we have a policy mapping for */}
       {selectedAlert && selectedAlert.hasRecommendations && (
         <FixAlertModal
