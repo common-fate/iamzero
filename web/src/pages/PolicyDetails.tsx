@@ -102,10 +102,10 @@ const PolicyDetails: React.FC = () => {
               <Flex w="200px" justify="flex-end">
                 <Text>Action</Text>
               </Flex>
-              <Flex w="300px" justify="flex-end">
+              <Flex w="350px" justify="flex-end">
                 <Text>Resources</Text>
               </Flex>
-              <Flex justify="center" flexGrow={1}>
+              <Flex justify="flex-end" flexGrow={1} mr="50px">
                 <Text>Advisory</Text>
               </Flex>
             </Flex>
@@ -239,7 +239,7 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
           <Flex w="200px" justify="flex-end">
             <Text fontWeight="bold">{getAlertTitle(action)}</Text>
           </Flex>
-          <Flex w="300px" justify="flex-end">
+          <Flex w="350px" justify="flex-end">
             <Box
               as="span"
               borderRadius={5}
