@@ -24,7 +24,8 @@ export interface AWSIdentity {
 }
 
 export interface Recommendation {
-  Description: RecommendationDescription[];
+  Description?: RecommendationDescription[];
+  AWSPolicy?: AWSIAMPolicy;
   Comment: string;
   ID: string;
 }
@@ -58,7 +59,7 @@ export interface ActionWithRecommendations {
   recommendations: Recommendation[];
   hasRecommendations: true;
   enabled: boolean;
-  selectedRecommendation: string;
+  selectedAdvisoryId: string;
 }
 
 /** An alert that we do not yet handle and haven't generated recommendations for */
@@ -70,7 +71,7 @@ export interface UnhandledAction {
   recommendations: null;
   hasRecommendations: false;
   enabled: boolean;
-  selectedRecommendation: string;
+  selectedAdvisoryId: string;
 }
 
 export type Action = ActionWithRecommendations | UnhandledAction;

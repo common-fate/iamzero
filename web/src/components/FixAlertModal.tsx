@@ -98,7 +98,7 @@ export const FixAlertModal: React.FC<FixAlertModalProps> = ({
             </Stack>
             <Stack>
               <Heading size="sm">Description</Heading>
-              {selectedPolicy.Description.map((description) => (
+              {selectedPolicy.Description?.map((description) => (
                 <Stack>
                   <Box display="inline" as="span">
                     <Text display="inline">

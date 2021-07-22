@@ -1,8 +1,6 @@
 package recommendations
 
 import (
-	"time"
-
 	"go.uber.org/zap"
 )
 
@@ -59,20 +57,6 @@ type AdviceFactory = func(e AWSEvent) (Advice, error)
 
 type Advisor struct {
 	AlertsMapping map[string][]AdviceFactory
-}
-
-type AWSAction struct {
-	ID                 string    `json:"id"`
-	PolicyID           string    `json:"policyId"`
-	Event              AWSEvent  `json:"event"`
-	Status             string    `json:"status"`
-	Time               time.Time `json:"time"`
-	Recommendations    []Advice  `json:"recommendations"`
-	HasRecommendations bool      `json:"hasRecommendations"`
-	// Enabled indicates whether this action is used in a least-privilege policy
-	Enabled bool `json:"enabled"`
-	// SelectedAdvisoryID is the ID of the advisory selected by the user to resolve the policy
-	SelectedAdvisoryID string `json:"selectedAdvisoryId"`
 }
 
 type Description struct {

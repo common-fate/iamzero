@@ -25,7 +25,8 @@ func (p *Policy) RecalculateDocument(actions []AWSAction) {
 
 	for _, alert := range actions {
 		if alert.Enabled && len(alert.Recommendations) > 0 {
-			for _, description := range alert.Recommendations[0].Details().Description {
+			advisory := alert.GetSelectedAdvisory()
+			for _, description := range advisory.Details().Description {
 				// TODO: this should be redesigned to avoid casting from the interface.
 				policy, ok := description.Policy.(AWSIAMPolicy)
 				if ok {
@@ -36,6 +37,6 @@ func (p *Policy) RecalculateDocument(actions []AWSAction) {
 	}
 
 	p.LastUpdated = time.Now()
-	p.EventCount += len(actions)
+	p.EventCount = len(actions)
 	p.Document.Statement = statements
 }

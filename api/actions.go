@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-type AlertResponse struct {
+type ActionResponse struct {
 	ID     string                   `json:"id"`
 	Event  recommendations.AWSEvent `json:"event"`
 	Status string                   `json:"status"`
@@ -21,10 +21,10 @@ type AlertResponse struct {
 	HasRecommendations bool                                    `json:"hasRecommendations"`
 }
 
-func (h *Handlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) ListActions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	alertsResponse := []AlertResponse{}
+	alertsResponse := []ActionResponse{}
 
 	alerts := h.ActionStorage.List()
 
@@ -34,7 +34,7 @@ func (h *Handlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 			details := rec.Details()
 			detailsArr = append(detailsArr, details)
 		}
-		alertRes := AlertResponse{
+		alertRes := ActionResponse{
 			ID:                 alert.ID,
 			Event:              alert.Event,
 			Status:             alert.Status,
@@ -48,16 +48,17 @@ func (h *Handlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
 	io.RespondJSON(ctx, h.Log, w, alertsResponse, http.StatusOK)
 }
 
-type reviewAlertBody struct {
+type reviewActionBody struct {
 	// "apply" or "ignore"
 	Decision         string
 	RecommendationID *string
 }
 
-func (h *Handlers) ReviewAlert(w http.ResponseWriter, r *http.Request) {
+// TODO: deprecated and to be removed.
+func (h *Handlers) ReviewAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	alertID := chi.URLParam(r, "alertID")
-	var b reviewAlertBody
+	var b reviewActionBody
 
 	if err := io.DecodeJSONBody(w, r, &b); err != nil {
 		io.RespondError(ctx, h.Log, w, err)
@@ -115,14 +116,15 @@ func (h *Handlers) ReviewAlert(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type enableActionBody struct {
-	Enabled bool `json:"enabled"`
+type editActionBody struct {
+	Enabled            *bool   `json:"enabled"`
+	SelectedAdvisoryID *string `json:"selectedAdvisoryId"`
 }
 
-func (h *Handlers) UpdateEnabledStatus(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	alertID := chi.URLParam(r, "alertID")
-	var b enableActionBody
+	var b editActionBody
 
 	if err := io.DecodeJSONBody(w, r, &b); err != nil {
 		io.RespondError(ctx, h.Log, w, err)
@@ -131,7 +133,7 @@ func (h *Handlers) UpdateEnabledStatus(w http.ResponseWriter, r *http.Request) {
 
 	action := h.ActionStorage.Get(alertID)
 	if action == nil {
-		io.RespondText(ctx, h.Log, w, "alert not found", http.StatusNotFound)
+		io.RespondText(ctx, h.Log, w, "action not found", http.StatusNotFound)
 		return
 	}
 
@@ -141,7 +143,17 @@ func (h *Handlers) UpdateEnabledStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	action.Enabled = b.Enabled
+	if b.Enabled != nil {
+		action.Enabled = *b.Enabled
+	}
+
+	if b.SelectedAdvisoryID != nil {
+		if err := action.SelectAdvisory(*b.SelectedAdvisoryID); err != nil {
+			io.RespondError(ctx, h.Log, w, err)
+			return
+		}
+	}
+
 	if err := h.ActionStorage.Update(*action); err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return

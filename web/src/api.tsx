@@ -45,10 +45,15 @@ export const createToken = (name: string) =>
     body: JSON.stringify({ name }),
   });
 
-export const updateActionEnabledStatus = (actionId: string, enabled: boolean) =>
-  fetchWithAuth<Policy>(`/api/v1/alerts/${actionId}/enabled`, {
+export interface EditActionRequestBody {
+  enabled?: boolean;
+  selectedAdvisoryId?: string;
+}
+
+export const editAction = (actionId: string, body: EditActionRequestBody) =>
+  fetchWithAuth<Policy>(`/api/v1/alerts/${actionId}/edit`, {
     method: "PUT",
-    body: JSON.stringify({ enabled }),
+    body: JSON.stringify(body),
   });
 
 export const useAlerts = () =>

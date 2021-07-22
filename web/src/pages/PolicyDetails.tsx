@@ -13,6 +13,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  Link,
   Select,
   Spinner,
   Stack,
@@ -28,7 +29,8 @@ import {
 import React, { useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import {
-  updateActionEnabledStatus,
+  editAction,
+  EditActionRequestBody,
   useActionsForPolicy,
   usePolicy,
 } from "../api";
@@ -45,7 +47,7 @@ import produce from "immer";
 
 const PolicyDetails: React.FC = () => {
   const { policyId } = useParams<{ policyId: string }>();
-  const { data: policy, mutate } = usePolicy(policyId);
+  const { data: policy, mutate, error } = usePolicy(policyId);
   const { data: actions, mutate: mutateActions } = useActionsForPolicy(
     policyId
   );
@@ -54,18 +56,45 @@ const PolicyDetails: React.FC = () => {
 
   const [selectedStatement, setSelectedStatement] = useState<string>();
 
+  const handleSelectAction = (action: Action) => {
+    if (action.recommendations && action.recommendations.length > 0) {
+      const advisory = action.recommendations.find(
+        (r) => r.ID === action.selectedAdvisoryId
+      );
+      setSelectedStatement(advisory?.AWSPolicy?.Statement[0].Sid);
+    }
+  };
+
+  if (error) {
+    return (
+      <Center flexGrow={1}>
+        <Text>
+          We couldn't find the policy you're looking for.{" "}
+          <Link as={RouterLink} to="/policies">
+            Click here to go back.
+          </Link>
+        </Text>
+      </Center>
+    );
+  }
+
   if (policy === undefined || actions === undefined) return <CenteredSpinner />;
 
-  const onUpdateActionEnabled = async (action: Action, enabled: boolean) => {
+  const onUpdateActionEnabled = async (
+    action: Action,
+    edit: EditActionRequestBody
+  ) => {
     // perform an optimistic update of the action
     const newActions = produce(actions, (draft) => {
       const index = actions.findIndex((a) => a.id === action.id);
-      draft[index].enabled = enabled;
+      if (edit.enabled !== undefined) draft[index].enabled = edit.enabled;
+      if (edit.selectedAdvisoryId !== undefined)
+        draft[index].selectedAdvisoryId = edit.selectedAdvisoryId;
     });
     await mutateActions(newActions, false);
     setLoadingPolicy(true);
 
-    const result = await updateActionEnabledStatus(action.id, enabled);
+    const result = await editAction(action.id, edit);
     await mutate(result, true);
     setLoadingPolicy(false);
   };
@@ -142,9 +171,9 @@ const PolicyDetails: React.FC = () => {
               <ActionDisplay
                 key={action.id}
                 action={action}
-                onMouseOver={() => setSelectedStatement("1")}
+                onMouseOver={() => handleSelectAction(action)}
                 onMouseOut={() => setSelectedStatement(undefined)}
-                onUpdateEnabledStatus={(enabled) =>
+                onEditAction={(enabled) =>
                   onUpdateActionEnabled(action, enabled)
                 }
               />
@@ -190,6 +219,7 @@ const PolicyDetails: React.FC = () => {
         a more elegant way to achieve this.
          */}
           <Code
+            flexGrow={1}
             backgroundColor="#011627"
             display="block"
             whiteSpace="pre"
@@ -205,6 +235,7 @@ const PolicyDetails: React.FC = () => {
             </Box>
             {policy.document.Statement.map((statement) => (
               <Box
+                key={statement.Sid}
                 position="relative"
                 as="span"
                 display="block"
@@ -219,8 +250,8 @@ const PolicyDetails: React.FC = () => {
                   <Text
                     fontFamily="body"
                     position="absolute"
-                    top={2}
-                    right={2}
+                    top={1}
+                    right={1}
                     color="whiteAlpha.700"
                     fontWeight="bold"
                   >
@@ -253,14 +284,14 @@ interface ActionDisplayProps {
   action: Action;
   onMouseOver?: () => void;
   onMouseOut?: () => void;
-  onUpdateEnabledStatus?: (enabled: boolean) => void;
+  onEditAction?: (edit: EditActionRequestBody) => void;
 }
 
 const ActionDisplay: React.FC<ActionDisplayProps> = ({
   action,
   onMouseOut,
   onMouseOver,
-  onUpdateEnabledStatus,
+  onEditAction,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -280,7 +311,11 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
           <Flex w="100px" justify="center">
             <Checkbox
               isChecked={action.enabled}
-              onChange={(e) => onUpdateEnabledStatus?.(e.target.checked)}
+              onChange={(e) =>
+                onEditAction?.({
+                  enabled: e.target.checked,
+                })
+              }
             />
           </Flex>
           <Flex w="200px" justify="flex-end">
@@ -301,10 +336,18 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
           </Flex>
         </Flex>
         <HStack>
-          <Select defaultValue={0} maxW="400px">
-            {action.recommendations?.map((policy) => (
-              <option key={policy.ID} value={policy.ID}>
-                {policy.Comment}
+          <Select
+            value={action.selectedAdvisoryId}
+            onChange={(e) =>
+              onEditAction?.({
+                selectedAdvisoryId: e.target.value,
+              })
+            }
+            maxW="400px"
+          >
+            {action.recommendations?.map((advisory) => (
+              <option key={advisory.ID} value={advisory.ID}>
+                {advisory.Comment}
               </option>
             ))}
           </Select>

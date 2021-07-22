@@ -73,11 +73,11 @@ func API(cfg *APIConfig) http.Handler {
 			})
 
 			r.Route("/alerts", func(r chi.Router) {
-				r.Get("/", handlers.ListAlerts)
+				r.Get("/", handlers.ListActions)
 
 				r.Route("/{alertID}", func(r chi.Router) {
-					r.Post("/review", handlers.ReviewAlert)
-					r.Put("/enabled", handlers.UpdateEnabledStatus)
+					r.Post("/review", handlers.ReviewAction)
+					r.Put("/edit", handlers.EditAction)
 				})
 			})
 

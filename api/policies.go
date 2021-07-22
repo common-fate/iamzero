@@ -17,7 +17,14 @@ func (h *Handlers) GetPolicy(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	policyID := chi.URLParam(r, "policyID")
 	policy := h.PolicyStorage.Get(policyID)
-	io.RespondJSON(ctx, h.Log, w, policy, http.StatusOK)
+
+	if policy == nil {
+		http.Error(w, "policy not found", http.StatusNotFound)
+	} else {
+
+		io.RespondJSON(ctx, h.Log, w, policy, http.StatusOK)
+	}
+
 }
 
 func (h *Handlers) ListActionsForPolicy(w http.ResponseWriter, r *http.Request) {
