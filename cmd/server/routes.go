@@ -77,6 +77,7 @@ func API(cfg *APIConfig) http.Handler {
 
 				r.Route("/{alertID}", func(r chi.Router) {
 					r.Post("/review", handlers.ReviewAlert)
+					r.Put("/enabled", handlers.UpdateEnabledStatus)
 				})
 			})
 

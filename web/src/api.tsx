@@ -7,7 +7,7 @@ import { Action, Policy, Token } from "./api-types";
  * localStorage.
  * Only adds the header if a token is found.
  */
-export const fetchWithAuth = (
+export const fetchWithAuth = async <T extends any>(
   path: string,
   init?: RequestInit | undefined,
   token?: string
@@ -17,10 +17,15 @@ export const fetchWithAuth = (
     ? { ...init?.headers, "x-iamzero-token": authToken }
     : init?.headers;
 
-  return fetch(path, {
+  const r = await fetch(path, {
     ...init,
-    headers,
+    headers: {
+      ...headers,
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
   });
+  return r.json() as T;
 };
 
 export interface GetTokensResponse {
@@ -32,20 +37,18 @@ export const useTokens = () => useSWR<GetTokensResponse>("/api/v1/tokens");
 export const deleteToken = (tokenId: string) =>
   fetchWithAuth(`/api/v1/tokens/${tokenId}`, {
     method: "DELETE",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
   });
 
 export const createToken = (name: string) =>
   fetchWithAuth(`/api/v1/tokens`, {
     method: "POST",
     body: JSON.stringify({ name }),
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
+  });
+
+export const updateActionEnabledStatus = (actionId: string, enabled: boolean) =>
+  fetchWithAuth<Policy>(`/api/v1/alerts/${actionId}/enabled`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
   });
 
 export const useAlerts = () =>
@@ -82,8 +85,4 @@ export const reviewAlert = (alertId: string, review: AlertReview) =>
   fetchWithAuth(`/api/v1/alerts/${alertId}/review`, {
     method: "POST",
     body: JSON.stringify(review),
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
   });

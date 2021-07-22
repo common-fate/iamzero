@@ -49,8 +49,7 @@ const AppProviders: React.FC = ({ children }) => {
       <Router>
         <SWRConfig
           value={{
-            fetcher: (resource, init) =>
-              fetchWithAuth(resource, init).then((res) => res.json()),
+            fetcher: (resource, init) => fetchWithAuth(resource, init),
           }}
         >
           {children}

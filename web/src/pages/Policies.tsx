@@ -45,6 +45,8 @@ export const MOCK_ACTIONS: Action[] = [
         exceptionCode: "AccessDenied",
       },
     },
+    enabled: true,
+    selectedRecommendation: "934e8218-ddc1-4ae6-a0cd-e86b70f8d96b",
     status: "active",
     time: new Date(Date.parse("2021-07-14T09:21:42.004805954Z")),
     recommendations: [

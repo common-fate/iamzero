@@ -6,6 +6,7 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   Button,
+  Center,
   Checkbox,
   Code,
   Flex,
@@ -13,6 +14,7 @@ import {
   HStack,
   IconButton,
   Select,
+  Spinner,
   Stack,
   Table,
   Tbody,
@@ -25,7 +27,11 @@ import {
 } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
-import { useActionsForPolicy, usePolicy } from "../api";
+import {
+  updateActionEnabledStatus,
+  useActionsForPolicy,
+  usePolicy,
+} from "../api";
 import { Action } from "../api-types";
 import { CenteredSpinner } from "../components/CenteredSpinner";
 import { KeyValueBadge } from "../components/KeyValueBadge";
@@ -35,16 +41,34 @@ import { getAlertTitle } from "../utils/getAlertTitle";
 import { getEventCountString } from "../utils/getEventCountString";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
 import { MOCK_RESOURCES } from "./Policies";
+import produce from "immer";
 
 const PolicyDetails: React.FC = () => {
   const { policyId } = useParams<{ policyId: string }>();
-  const { data: policy } = usePolicy(policyId);
-  const { data: actions } = useActionsForPolicy(policyId);
+  const { data: policy, mutate } = usePolicy(policyId);
+  const { data: actions, mutate: mutateActions } = useActionsForPolicy(
+    policyId
+  );
+  const [loadingPolicy, setLoadingPolicy] = useState(false);
   const { hasCopied, onCopy } = useClipboard(JSON.stringify(policy, null, 2));
 
   const [selectedStatement, setSelectedStatement] = useState<string>();
 
   if (policy === undefined || actions === undefined) return <CenteredSpinner />;
+
+  const onUpdateActionEnabled = async (action: Action, enabled: boolean) => {
+    // perform an optimistic update of the action
+    const newActions = produce(actions, (draft) => {
+      const index = actions.findIndex((a) => a.id === action.id);
+      draft[index].enabled = enabled;
+    });
+    await mutateActions(newActions, false);
+    setLoadingPolicy(true);
+
+    const result = await updateActionEnabledStatus(action.id, enabled);
+    await mutate(result, true);
+    setLoadingPolicy(false);
+  };
 
   return (
     <Flex flexGrow={1}>
@@ -120,6 +144,9 @@ const PolicyDetails: React.FC = () => {
                 action={action}
                 onMouseOver={() => setSelectedStatement("1")}
                 onMouseOut={() => setSelectedStatement(undefined)}
+                onUpdateEnabledStatus={(enabled) =>
+                  onUpdateActionEnabled(action, enabled)
+                }
               />
             ))}
           </Stack>
@@ -130,8 +157,10 @@ const PolicyDetails: React.FC = () => {
         py={3}
         position="relative"
         backgroundColor="#011627"
+        w="33%"
       >
-        <Box
+        <HStack
+          justifyContent="center"
           width="full"
           mb="1"
           userSelect="none"
@@ -144,8 +173,16 @@ const PolicyDetails: React.FC = () => {
           textTransform="uppercase"
           pointerEvents="none"
         >
-          Generated Policy
-        </Box>
+          <Text
+            // apply padding to offset the spinner, so that the text is still centered
+            pl="12px"
+          >
+            Generated Policy
+          </Text>
+          <Center w="12px" h="12px">
+            <Spinner size="xs" display={loadingPolicy ? undefined : "none"} />
+          </Center>
+        </HStack>
         <Flex flexGrow={1}>
           {/* NB: We deconstruct the JSON so that we can highlight the corresponding
         IAM policy statements when the user selects an action. However this requires 
@@ -216,12 +253,14 @@ interface ActionDisplayProps {
   action: Action;
   onMouseOver?: () => void;
   onMouseOut?: () => void;
+  onUpdateEnabledStatus?: (enabled: boolean) => void;
 }
 
 const ActionDisplay: React.FC<ActionDisplayProps> = ({
   action,
   onMouseOut,
   onMouseOver,
+  onUpdateEnabledStatus,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -239,7 +278,10 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
       <Flex align="center" justify="space-between" flexGrow={1}>
         <Flex align="center">
           <Flex w="100px" justify="center">
-            <Checkbox defaultChecked />
+            <Checkbox
+              isChecked={action.enabled}
+              onChange={(e) => onUpdateEnabledStatus?.(e.target.checked)}
+            />
           </Flex>
           <Flex w="200px" justify="flex-end">
             <Text fontWeight="bold">{getAlertTitle(action)}</Text>

@@ -69,16 +69,8 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 				EventCount:  0,
 				Status:      "active",
 				Document: recommendations.AWSIAMPolicy{
-					Version: "2012-10-17",
-					Statement: []recommendations.AWSIAMStatement{
-						// hardcoded for now until aggregation is implemented
-						{
-							Sid:      "1",
-							Effect:   "Allow",
-							Action:   []string{"dynamodb:Query"},
-							Resource: []string{"arn:aws:dynamodb:ap-southeast-2:123456789:table/IAMZero-dev/index/*"},
-						},
-					},
+					Version:   "2012-10-17",
+					Statement: []recommendations.AWSIAMStatement{},
 				},
 			}
 		}
@@ -98,6 +90,8 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 			Status:             recommendations.AlertActive,
 			Time:               time.Now(),
 			HasRecommendations: false,
+			Enabled:            true,
+			SelectedAdvisoryID: "",
 		}
 
 		res.AlertIDs = append(res.AlertIDs, action.ID)
@@ -105,19 +99,14 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 		if len(advice) > 0 {
 			action.HasRecommendations = true
 			action.Recommendations = advice
+			action.SelectedAdvisoryID = advice[0].GetID()
 		}
 
 		h.Log.With("action", action).Info("adding action")
 		h.ActionStorage.Add(action)
 
-		// // recalculate the policy document based on the actions
-		// // this initial implementation is naive and doesn't deduplicate or aggregate policies.
-		// alerts := h.ActionStorage.ListForPolicy(policy.ID)
-		// for _, alert := range(alerts) {
-		// 	alert.Recommendations[0].
-		// }
-		policy.LastUpdated = time.Now()
-		policy.EventCount += 1
+		actions := h.ActionStorage.ListForPolicy(policy.ID)
+		policy.RecalculateDocument(actions)
 
 		err = h.PolicyStorage.CreateOrUpdate(*policy)
 		if err != nil {

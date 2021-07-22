@@ -52,3 +52,13 @@ func (a *ActionStorage) SetStatus(id string, status string) error {
 	}
 	return errors.New("could not find alert")
 }
+
+func (s *ActionStorage) Update(action recommendations.AWSAction) error {
+	for i, a := range s.actions {
+		if a.ID == action.ID {
+			s.actions[i] = action
+			return nil
+		}
+	}
+	return errors.New("could not find alert")
+}

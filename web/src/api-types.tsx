@@ -57,6 +57,8 @@ export interface ActionWithRecommendations {
   status: AlertStatus;
   recommendations: Recommendation[];
   hasRecommendations: true;
+  enabled: boolean;
+  selectedRecommendation: string;
 }
 
 /** An alert that we do not yet handle and haven't generated recommendations for */
@@ -67,6 +69,8 @@ export interface UnhandledAction {
   status: AlertStatus;
   recommendations: null;
   hasRecommendations: false;
+  enabled: boolean;
+  selectedRecommendation: string;
 }
 
 export type Action = ActionWithRecommendations | UnhandledAction;

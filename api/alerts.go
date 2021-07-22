@@ -113,5 +113,48 @@ func (h *Handlers) ReviewAlert(w http.ResponseWriter, r *http.Request) {
 			io.RespondError(ctx, h.Log, w, errors.New("alert setstatus error"))
 		}
 	}
+}
 
+type enableActionBody struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (h *Handlers) UpdateEnabledStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	alertID := chi.URLParam(r, "alertID")
+	var b enableActionBody
+
+	if err := io.DecodeJSONBody(w, r, &b); err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
+
+	action := h.ActionStorage.Get(alertID)
+	if action == nil {
+		io.RespondText(ctx, h.Log, w, "alert not found", http.StatusNotFound)
+		return
+	}
+
+	policy := h.PolicyStorage.Get(action.PolicyID)
+	if policy == nil {
+		io.RespondText(ctx, h.Log, w, "policy not found", http.StatusNotFound)
+		return
+	}
+
+	action.Enabled = b.Enabled
+	if err := h.ActionStorage.Update(*action); err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
+
+	// return the updated Policy corresponding to this alert
+	actions := h.ActionStorage.ListForPolicy(policy.ID)
+
+	policy.RecalculateDocument(actions)
+	if err := h.PolicyStorage.CreateOrUpdate(*policy); err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
+
+	io.RespondJSON(ctx, h.Log, w, policy, http.StatusOK)
 }
