@@ -115,7 +115,6 @@ const PolicyDetails: React.FC = () => {
         </Breadcrumb>
         <Stack
           bg="white"
-          p={3}
           borderRadius={5}
           shadow="sm"
           justify="space-between"
@@ -123,28 +122,56 @@ const PolicyDetails: React.FC = () => {
           borderWidth="thin"
           spacing={8}
         >
-          <Stack spacing={4}>
-            <Flex direction="row" justify="space-between" spacing={5}>
-              <Heading size="md">{policy.identity.role}</Heading>
-              <HStack align="flex-end" spacing={5}>
-                <Box>
-                  <Badge>{getEventCountString(policy.eventCount)}</Badge>
-                </Box>
-                <RelativeDateText textAlign="right" date={policy.lastUpdated} />
+          <Stack spacing={5}>
+            <Stack spacing={4} bgColor="blue.50" p={3} pb={6}>
+              <Flex
+                direction="row"
+                justify="space-between"
+                spacing={5}
+                borderBottomColor="gray.100"
+              >
+                <Heading size="md">{policy.identity.role}</Heading>
+                <HStack align="flex-end" spacing={5}>
+                  <Box>
+                    <Badge colorScheme="blue">
+                      {getEventCountString(policy.eventCount)}
+                    </Badge>
+                  </Box>
+                  <RelativeDateText
+                    textAlign="right"
+                    date={policy.lastUpdated}
+                  />
+                </HStack>
+              </Flex>
+              <HStack>
+                <Button colorScheme="blue" size="sm">
+                  Resolve
+                </Button>
+                <Button colorScheme="blue" variant="outline" size="sm">
+                  View in AWS Console
+                </Button>
+                <Button
+                  colorScheme="blue"
+                  variant="outline"
+                  size="sm"
+                  onClick={onCopy}
+                >
+                  {hasCopied ? "Policy Copied!" : "Copy Policy"}
+                </Button>
               </HStack>
-            </Flex>
-            <Stack direction="row" wrap="wrap" spacing={3}>
+            </Stack>
+            <Stack direction="row" wrap="wrap" spacing={3} px={3}>
               <KeyValueBadge label="Role ARN" value={policy.identity.role} />
               <KeyValueBadge label="Account" value={policy.identity.account} />
               <KeyValueBadge label="Token" value={policy.token.name} />
             </Stack>
-            <Text>
+            <Text px={3}>
               The actions below have been recorded by IAM Zero for this role.
               Confirm your IAM policy by selecting actions and then clicking the
               Copy button on the generated policy.
             </Text>
           </Stack>
-          <Stack>
+          <Stack p={3}>
             <Flex
               px={3}
               color="gray.500"
@@ -271,7 +298,7 @@ const PolicyDetails: React.FC = () => {
           </Code>
         </Flex>
         <Flex justify="center" p={5}>
-          <Button colorScheme="teal" zIndex="1" onClick={onCopy}>
+          <Button colorScheme="blue" zIndex="1" onClick={onCopy}>
             {hasCopied ? "Policy Copied!" : "Copy Policy"}
           </Button>
         </Flex>
