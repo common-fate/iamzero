@@ -7,11 +7,11 @@ import { Action, Policy, Token } from "./api-types";
  * localStorage.
  * Only adds the header if a token is found.
  */
-export const fetchWithAuth = async <T extends any>(
+export async function fetchWithAuth<T>(
   path: string,
   init?: RequestInit | undefined,
   token?: string
-) => {
+) {
   const authToken = token ?? localStorage.getItem("iamzeroToken");
   const headers = authToken
     ? { ...init?.headers, "x-iamzero-token": authToken }
@@ -25,8 +25,8 @@ export const fetchWithAuth = async <T extends any>(
       "Content-Type": "application/json",
     },
   });
-  return r.json() as T;
-};
+  return r.json() as Promise<T>;
+}
 
 export interface GetTokensResponse {
   tokens: Token[];
