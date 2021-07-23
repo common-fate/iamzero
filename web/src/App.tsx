@@ -9,7 +9,7 @@ import {
 import { SWRConfig } from "swr";
 import { fetchWithAuth } from "./api";
 import Layout from "./layouts/Layout";
-import Alerts from "./pages/Alerts";
+import AlertRedirectToPolicy from "./pages/AlertRedirectToPolicy";
 import Policies from "./pages/Policies";
 import PolicyDetails from "./pages/PolicyDetails";
 import Tokens from "./pages/Tokens";
@@ -28,14 +28,11 @@ function App() {
           <Route path="/policies/:policyId">
             <PolicyDetails />
           </Route>
-          <Route path="/alerts" exact>
-            <Alerts />
-          </Route>
           <Route path="/tokens" exact>
             <Tokens />
           </Route>
           <Route path="/alerts/:alertId">
-            <Alerts />
+            <AlertRedirectToPolicy />
           </Route>
         </Switch>
       </Layout>

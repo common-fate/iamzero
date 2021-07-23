@@ -1,8 +1,6 @@
 package api
 
 import (
-	"context"
-	"errors"
 	"net/http"
 	"time"
 
@@ -12,108 +10,64 @@ import (
 )
 
 type ActionResponse struct {
-	ID     string                   `json:"id"`
-	Event  recommendations.AWSEvent `json:"event"`
-	Status string                   `json:"status"`
-	Time   time.Time                `json:"time"`
+	ID       string                   `json:"id"`
+	PolicyID string                   `json:"policyId"`
+	Event    recommendations.AWSEvent `json:"event"`
+	Status   string                   `json:"status"`
+	Time     time.Time                `json:"time"`
 
 	Recommendations    []recommendations.RecommendationDetails `json:"recommendations"`
 	HasRecommendations bool                                    `json:"hasRecommendations"`
 }
 
+// buildActionResponse loops through the advisories associated with an action
+// to build a response
+func buildActionResponse(action recommendations.AWSAction) ActionResponse {
+	var detailsArr []recommendations.RecommendationDetails
+	for _, rec := range action.Recommendations {
+		details := rec.Details()
+		detailsArr = append(detailsArr, details)
+	}
+	return ActionResponse{
+		ID:                 action.ID,
+		PolicyID:           action.PolicyID,
+		Event:              action.Event,
+		Status:             action.Status,
+		Time:               action.Time,
+		Recommendations:    detailsArr,
+		HasRecommendations: action.HasRecommendations,
+	}
+}
+
 func (h *Handlers) ListActions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	alertsResponse := []ActionResponse{}
+	actionsResponse := []ActionResponse{}
 
-	alerts := h.ActionStorage.List()
+	actions := h.ActionStorage.List()
 
-	for _, alert := range alerts {
-		var detailsArr []recommendations.RecommendationDetails
-		for _, rec := range alert.Recommendations {
-			details := rec.Details()
-			detailsArr = append(detailsArr, details)
-		}
-		alertRes := ActionResponse{
-			ID:                 alert.ID,
-			Event:              alert.Event,
-			Status:             alert.Status,
-			Time:               alert.Time,
-			Recommendations:    detailsArr,
-			HasRecommendations: alert.HasRecommendations,
-		}
-		alertsResponse = append(alertsResponse, alertRes)
+	for _, action := range actions {
+		res := buildActionResponse(action)
+		actionsResponse = append(actionsResponse, res)
 	}
 
-	io.RespondJSON(ctx, h.Log, w, alertsResponse, http.StatusOK)
+	io.RespondJSON(ctx, h.Log, w, actionsResponse, http.StatusOK)
 }
 
-type reviewActionBody struct {
-	// "apply" or "ignore"
-	Decision         string
-	RecommendationID *string
-}
-
-// TODO: deprecated and to be removed.
-func (h *Handlers) ReviewAction(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	alertID := chi.URLParam(r, "alertID")
-	var b reviewActionBody
+	actionID := chi.URLParam(r, "actionID")
 
-	if err := io.DecodeJSONBody(w, r, &b); err != nil {
-		io.RespondError(ctx, h.Log, w, err)
+	action := h.ActionStorage.Get(actionID)
+
+	if action == nil {
+		http.Error(w, "action not found", http.StatusNotFound)
 		return
 	}
 
-	h.Log.With("body", b).Info("review alert")
+	res := buildActionResponse(*action)
 
-	alert := h.ActionStorage.Get(alertID)
-	if alert == nil {
-		io.RespondText(ctx, h.Log, w, "alert not found", http.StatusNotFound)
-		return
-	}
-
-	if b.Decision == "apply" {
-		err := h.ActionStorage.SetStatus(alertID, recommendations.AlertApplying)
-		if err != nil {
-			io.RespondError(ctx, h.Log, w, errors.New("alert setstatus error"))
-		}
-
-		// TODO: make this more resilient
-		go func() {
-			ctx := context.Background()
-			var recommendation recommendations.Advice
-
-			for _, rec := range alert.Recommendations {
-				if rec.GetID() == *b.RecommendationID {
-					recommendation = rec
-					break
-				}
-			}
-
-			if recommendation == nil {
-				io.RespondText(ctx, h.Log, w, "recommendation not found", http.StatusNotFound)
-				return
-			}
-
-			err = recommendation.Apply(h.Log)
-			if err != nil {
-				io.RespondError(ctx, h.Log, w, errors.New("applier error"))
-			}
-
-			err = h.ActionStorage.SetStatus(alertID, recommendations.AlertFixed)
-			if err != nil {
-				io.RespondError(ctx, h.Log, w, errors.New("alert setstatus error"))
-			}
-		}()
-		return
-
-	} else if b.Decision == "ignore" {
-		err := h.ActionStorage.SetStatus(alertID, recommendations.AlertIgnored)
-		if err != nil {
-			io.RespondError(ctx, h.Log, w, errors.New("alert setstatus error"))
-		}
-	}
+	io.RespondJSON(ctx, h.Log, w, res, http.StatusOK)
 }
 
 type editActionBody struct {
@@ -123,7 +77,7 @@ type editActionBody struct {
 
 func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	alertID := chi.URLParam(r, "alertID")
+	actionID := chi.URLParam(r, "actionID")
 	var b editActionBody
 
 	if err := io.DecodeJSONBody(w, r, &b); err != nil {
@@ -131,7 +85,7 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	action := h.ActionStorage.Get(alertID)
+	action := h.ActionStorage.Get(actionID)
 	if action == nil {
 		io.RespondText(ctx, h.Log, w, "action not found", http.StatusNotFound)
 		return

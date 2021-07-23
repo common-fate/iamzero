@@ -51,16 +51,15 @@ export interface EditActionRequestBody {
 }
 
 export const editAction = (actionId: string, body: EditActionRequestBody) =>
-  fetchWithAuth<Policy>(`/api/v1/alerts/${actionId}/edit`, {
+  fetchWithAuth<Policy>(`/api/v1/actions/${actionId}/edit`, {
     method: "PUT",
     body: JSON.stringify(body),
   });
 
-export const useAlerts = () =>
-  useSWR<Action[]>("/api/v1/alerts", {
-    refreshInterval: 10000,
-    revalidateOnFocus: true,
-  });
+export const useActions = () => useSWR<Action[]>("/api/v1/actions");
+
+export const useAction = (actionId: string | null) =>
+  useSWR<Action>(actionId ? `/api/v1/actions/${actionId}` : null);
 
 export const usePolicies = (status?: PolicyStatus) =>
   useSWR<Policy[]>(
@@ -76,23 +75,6 @@ export const usePolicy = (policyId: string | null) =>
 export const useActionsForPolicy = (policyId: string | null) =>
   useSWR<Action[]>(policyId ? `/api/v1/policies/${policyId}/actions` : null, {
     revalidateOnFocus: true,
-  });
-
-export interface ReviewApply {
-  Decision: "apply";
-  RecommendationID: string;
-}
-
-export interface ReviewIgnore {
-  Decision: "ignore";
-}
-
-export type AlertReview = ReviewIgnore | ReviewApply;
-
-export const reviewAlert = (alertId: string, review: AlertReview) =>
-  fetchWithAuth(`/api/v1/alerts/${alertId}/review`, {
-    method: "POST",
-    body: JSON.stringify(review),
   });
 
 export const setPolicyStatus = (policyId: string, status: PolicyStatus) =>

@@ -12,6 +12,7 @@ export const MOCK_RESOURCES = [
 export const MOCK_ACTIONS: Action[] = [
   {
     id: "d6891731-1d01-4bac-9ed1-35c992d4fd99",
+    policyId: "1",
     event: {
       time: "2021-07-14T09:21:41.385841Z",
       data: {

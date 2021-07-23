@@ -53,6 +53,7 @@ export type AlertStatus = "active" | "fixed" | "applying" | "ignored";
 /** An alert that iam-zero has generated recommendations for */
 export interface ActionWithRecommendations {
   id: string;
+  policyId: string;
   event: Event;
   time: Date;
   status: AlertStatus;
@@ -66,6 +67,7 @@ export interface ActionWithRecommendations {
 export interface UnhandledAction {
   id: string;
   event: Event;
+  policyId: string;
   time: Date;
   status: AlertStatus;
   recommendations: null;

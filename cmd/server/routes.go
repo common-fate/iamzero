@@ -72,11 +72,11 @@ func API(cfg *APIConfig) http.Handler {
 				r.Delete("/{tokenID}", handlers.DeleteToken)
 			})
 
-			r.Route("/alerts", func(r chi.Router) {
+			r.Route("/actions", func(r chi.Router) {
 				r.Get("/", handlers.ListActions)
 
-				r.Route("/{alertID}", func(r chi.Router) {
-					r.Post("/review", handlers.ReviewAction)
+				r.Route("/{actionID}", func(r chi.Router) {
+					r.Get("/", handlers.GetAction)
 					r.Put("/edit", handlers.EditAction)
 				})
 			})

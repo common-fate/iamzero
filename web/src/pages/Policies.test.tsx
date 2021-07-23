@@ -1,14 +1,14 @@
 import { screen } from "@testing-library/react";
 import { render } from "../test-utils";
-import Alerts from "./Alerts";
 import { createMemoryHistory } from "history";
 import { Router } from "react-router";
+import Policies from "./Policies";
 
-test("Alerts page smoke test", () => {
+test("Policies page smoke test", () => {
   const history = createMemoryHistory();
   render(
     <Router history={history}>
-      <Alerts />
+      <Policies />
     </Router>
   );
   const linkElement = screen.getByText(/Active/i);
