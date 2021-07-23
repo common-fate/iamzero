@@ -7,6 +7,7 @@ import {
   Switch,
 } from "react-router-dom";
 import { SWRConfig } from "swr";
+import { QueryParamProvider } from "use-query-params";
 import { fetchWithAuth } from "./api";
 import Layout from "./layouts/Layout";
 import AlertRedirectToPolicy from "./pages/AlertRedirectToPolicy";
@@ -44,13 +45,15 @@ const AppProviders: React.FC = ({ children }) => {
   return (
     <ChakraProvider>
       <Router>
-        <SWRConfig
-          value={{
-            fetcher: (resource, init) => fetchWithAuth(resource, init),
-          }}
-        >
-          {children}
-        </SWRConfig>
+        <QueryParamProvider ReactRouterRoute={Route}>
+          <SWRConfig
+            value={{
+              fetcher: (resource, init) => fetchWithAuth(resource, init),
+            }}
+          >
+            {children}
+          </SWRConfig>
+        </QueryParamProvider>
       </Router>
     </ChakraProvider>
   );

@@ -26,7 +26,11 @@ import {
   Tooltip,
   Tr,
   useClipboard,
+  useRadio,
+  useRadioGroup,
+  UseRadioProps,
 } from "@chakra-ui/react";
+import produce from "immer";
 import React, { useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import {
@@ -43,12 +47,13 @@ import { RelativeDateText } from "../components/LastUpdatedText";
 import { S3Icon } from "../icons";
 import { getAlertTitle } from "../utils/getAlertTitle";
 import { getEventCountString } from "../utils/getEventCountString";
-import { renderStringOrObject } from "../utils/renderStringOrObject";
-import produce from "immer";
 import { MOCK_RESOURCES } from "../utils/mockData";
+import { renderStringOrObject } from "../utils/renderStringOrObject";
+import { useQueryParam, StringParam } from "use-query-params";
 
 const PolicyDetails: React.FC = () => {
   const { policyId } = useParams<{ policyId: string }>();
+
   const { data: policy, mutate, error } = usePolicy(policyId);
   const { data: actions, mutate: mutateActions } = useActionsForPolicy(
     policyId
@@ -56,16 +61,18 @@ const PolicyDetails: React.FC = () => {
   const [loadingPolicy, setLoadingPolicy] = useState(false);
   const { hasCopied, onCopy } = useClipboard(JSON.stringify(policy, null, 2));
 
-  const [selectedStatement, setSelectedStatement] = useState<string>();
+  const [selectedActionId, setSelectedActionId] = useQueryParam(
+    "action",
+    StringParam
+  );
 
-  const handleSelectAction = (action: Action) => {
-    if (action.recommendations && action.recommendations.length > 0) {
-      const advisory = action.recommendations.find(
-        (r) => r.ID === action.selectedAdvisoryId
-      );
-      setSelectedStatement(advisory?.AWSPolicy?.Statement[0].Sid);
-    }
-  };
+  const { getRootProps, getRadioProps } = useRadioGroup({
+    name: "actions",
+    value: selectedActionId ?? undefined,
+    onChange: (value) => setSelectedActionId(value),
+  });
+
+  const group = getRootProps();
 
   if (error) {
     return (
@@ -219,17 +226,23 @@ const PolicyDetails: React.FC = () => {
                 <Text>Advisory</Text>
               </Flex>
             </Flex>
-            {actions.map((action) => (
-              <ActionDisplay
-                key={action.id}
-                action={action}
-                onMouseOver={() => handleSelectAction(action)}
-                onMouseOut={() => setSelectedStatement(undefined)}
-                onEditAction={(enabled) =>
-                  onUpdateActionEnabled(action, enabled)
-                }
-              />
-            ))}
+            <Stack {...group}>
+              {actions.map((action) => {
+                const radio = getRadioProps({ value: action.id });
+                return (
+                  <ActionDisplay
+                    {...radio}
+                    key={action.id}
+                    action={action}
+                    // onMouseOver={() => handleSelectAction(action)}
+                    // onMouseOut={() => setSelectedActionId(undefined)}
+                    onEditAction={(enabled) =>
+                      onUpdateActionEnabled(action, enabled)
+                    }
+                  />
+                );
+              })}
+            </Stack>
           </Stack>
         </Stack>
       </Stack>
@@ -285,35 +298,44 @@ const PolicyDetails: React.FC = () => {
             <Box as="span" display="block" px={5}>
               {"  "}"Statement": [
             </Box>
-            {policy.document.Statement.map((statement) => (
-              <Box
-                key={statement.Sid}
-                position="relative"
-                as="span"
-                display="block"
-                backgroundColor={
-                  statement.Sid === selectedStatement
-                    ? "whiteAlpha.200"
-                    : undefined
-                }
-                px={5}
-              >
-                {statement.Sid === selectedStatement && (
-                  <Text
-                    fontFamily="body"
-                    position="absolute"
-                    top={1}
-                    right={1}
-                    color="whiteAlpha.700"
-                    fontWeight="bold"
-                  >
-                    s3:CreateBucket
-                  </Text>
-                )}
-                {"    " +
-                  JSON.stringify(statement, null, 2).replace(/\n/g, "\n    ")}
-              </Box>
-            ))}
+            {policy.document.Statement.map((statement) => {
+              // TODO: memoize this
+              const selectedAction = actions.find(
+                (a) => a.id === selectedActionId
+              );
+              const statementSids = selectedAction?.recommendations?.flatMap(
+                (s) => s.AWSPolicy?.Statement.map((s) => s.Sid)
+              );
+              return (
+                <Box
+                  key={statement.Sid}
+                  position="relative"
+                  as="span"
+                  display="block"
+                  backgroundColor={
+                    statementSids?.includes(statement.Sid)
+                      ? "whiteAlpha.200"
+                      : undefined
+                  }
+                  px={5}
+                >
+                  {statementSids?.includes(statement.Sid) && selectedAction && (
+                    <Text
+                      fontFamily="body"
+                      position="absolute"
+                      top={1}
+                      right={1}
+                      color="whiteAlpha.700"
+                      fontWeight="bold"
+                    >
+                      {getAlertTitle(selectedAction)}
+                    </Text>
+                  )}
+                  {"    " +
+                    JSON.stringify(statement, null, 2).replace(/\n/g, "\n    ")}
+                </Box>
+              );
+            })}
             <Box as="span" display="block" px={5}>
               {"  "}]
             </Box>
@@ -332,108 +354,124 @@ const PolicyDetails: React.FC = () => {
   );
 };
 
-interface ActionDisplayProps {
+interface ActionDisplayProps extends UseRadioProps {
   action: Action;
-  onMouseOver?: () => void;
-  onMouseOut?: () => void;
+  onHMouseOver?: () => void;
+  onHMouseOut?: () => void;
   onEditAction?: (edit: EditActionRequestBody) => void;
 }
 
 const ActionDisplay: React.FC<ActionDisplayProps> = ({
   action,
-  onMouseOut,
-  onMouseOver,
+  onHMouseOut,
+  onHMouseOver,
   onEditAction,
+  ...rest
 }) => {
   const [expanded, setExpanded] = useState(false);
 
+  const { getInputProps, getCheckboxProps } = useRadio(rest);
+
+  const input = getInputProps();
+  const checkbox = getCheckboxProps();
+
   return (
-    <Stack
-      key={action.id}
-      borderWidth="1px"
-      p={3}
-      boxSizing="border-box"
-      borderRadius={5}
-      onMouseOver={onMouseOver}
-      onMouseOut={onMouseOut}
-      _hover={{ borderColor: "transparent", boxShadow: "0 0 0 2px #90CDF4" }}
-    >
-      <Flex align="center" justify="space-between" flexGrow={1}>
-        <Flex align="center">
-          <Flex w="100px" justify="center">
-            <Checkbox
-              isChecked={action.enabled}
+    <Box as="label">
+      <input {...input} />
+      <Stack
+        {...checkbox}
+        key={action.id}
+        borderWidth="1px"
+        p={3}
+        boxSizing="border-box"
+        borderRadius={5}
+        onMouseOver={onHMouseOver}
+        onMouseOut={onHMouseOut}
+        _checked={{
+          borderColor: "transparent",
+          boxShadow: "0 0 0 2px #90CDF4",
+        }}
+        _focus={{
+          boxShadow: "outline",
+        }}
+      >
+        <Flex align="center" justify="space-between" flexGrow={1}>
+          <Flex align="center">
+            <Flex w="100px" justify="center">
+              <Checkbox
+                isChecked={action.enabled}
+                onChange={(e) =>
+                  onEditAction?.({
+                    enabled: e.target.checked,
+                  })
+                }
+              />
+            </Flex>
+            <Flex w="200px" justify="flex-end">
+              <Text fontWeight="bold">{getAlertTitle(action)}</Text>
+            </Flex>
+            <Flex w="350px" justify="flex-end">
+              <Box
+                as="span"
+                borderRadius={5}
+                borderWidth="2px"
+                p={1}
+                backgroundColor="gray.100"
+              >
+                <S3Icon h="24px" mr={1} />
+
+                {MOCK_RESOURCES[0].name}
+              </Box>
+            </Flex>
+          </Flex>
+          <HStack>
+            <Select
+              value={action.selectedAdvisoryId}
               onChange={(e) =>
                 onEditAction?.({
-                  enabled: e.target.checked,
+                  selectedAdvisoryId: e.target.value,
                 })
               }
-            />
-          </Flex>
-          <Flex w="200px" justify="flex-end">
-            <Text fontWeight="bold">{getAlertTitle(action)}</Text>
-          </Flex>
-          <Flex w="350px" justify="flex-end">
-            <Box
-              as="span"
-              borderRadius={5}
-              borderWidth="2px"
-              p={1}
-              backgroundColor="gray.100"
+              maxW="400px"
             >
-              <S3Icon h="24px" mr={1} />
-
-              {MOCK_RESOURCES[0].name}
-            </Box>
-          </Flex>
+              {action.recommendations?.map((advisory) => (
+                <option key={advisory.ID} value={advisory.ID}>
+                  {advisory.Comment}
+                </option>
+              ))}
+            </Select>
+            <IconButton
+              variant="ghost"
+              icon={<InfoOutlineIcon />}
+              onClick={() => setExpanded(!expanded)}
+              aria-label="edit"
+            />
+          </HStack>
         </Flex>
-        <HStack>
-          <Select
-            value={action.selectedAdvisoryId}
-            onChange={(e) =>
-              onEditAction?.({
-                selectedAdvisoryId: e.target.value,
-              })
-            }
-            maxW="400px"
-          >
-            {action.recommendations?.map((advisory) => (
-              <option key={advisory.ID} value={advisory.ID}>
-                {advisory.Comment}
-              </option>
-            ))}
-          </Select>
-          <IconButton
-            variant="ghost"
-            icon={<InfoOutlineIcon />}
-            onClick={() => setExpanded(!expanded)}
-            aria-label="edit"
-          />
-        </HStack>
-      </Flex>
-      {expanded && (
-        <Stack>
-          <Table size="sm">
-            <Thead>
-              <Tr>
-                <Th>Parameter</Th>
-                <Th>Value</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {Object.entries(action.event.data.parameters).map(
-                ([key, value]) => (
-                  <Tr key={key}>
-                    <Td>{key}</Td>
-                    <Td>{renderStringOrObject(value)}</Td>
-                  </Tr>
-                )
-              )}
-            </Tbody>
-          </Table>
-        </Stack>
-      )}
-    </Stack>
+        {expanded && (
+          <Stack>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>Parameter</Th>
+                  <Th>Value</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {Object.entries(action.event.data.parameters).map(
+                  ([key, value]) => (
+                    <Tr key={key}>
+                      <Td>{key}</Td>
+                      <Td>{renderStringOrObject(value)}</Td>
+                    </Tr>
+                  )
+                )}
+              </Tbody>
+            </Table>
+          </Stack>
+        )}
+      </Stack>
+    </Box>
   );
 };
 

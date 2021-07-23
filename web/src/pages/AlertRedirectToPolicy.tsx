@@ -23,7 +23,7 @@ const AlertRedirectToPolicy: React.FC = () => {
 
   if (data === undefined) return <CenteredSpinner />;
 
-  return <Redirect to={`/policies/${data.policyId}`} />;
+  return <Redirect to={`/policies/${data.policyId}?action=${data.id}`} />;
 };
 
 export default AlertRedirectToPolicy;
