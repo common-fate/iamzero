@@ -32,7 +32,7 @@ import {
 } from "@chakra-ui/react";
 import produce from "immer";
 import React, { useState } from "react";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Link as RouterLink, useHistory, useParams } from "react-router-dom";
 import {
   editAction,
   EditActionRequestBody,
@@ -179,7 +179,15 @@ const PolicyDetails: React.FC = () => {
                     />
                   </Tooltip>
                 )}
-                <Button colorScheme="blue" variant="outline" size="xs">
+                <Button
+                  colorScheme="blue"
+                  variant="outline"
+                  size="xs"
+                  onClick={() =>
+                    // TODO: we should direct the user to the specific role URL in the console. To achieve this we need to parse the role name
+                    window.open("https://console.aws.amazon.com/iam", "_blank")
+                  }
+                >
                   View in AWS Console
                 </Button>
                 <Button
