@@ -91,5 +91,7 @@ export interface Policy {
   token: Token;
   eventCount: number;
   document: AWSIAMPolicy;
-  status: "active" | "dismissed";
+  status: PolicyStatus;
 }
+
+export type PolicyStatus = "active" | "resolved";

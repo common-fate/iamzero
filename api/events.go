@@ -58,7 +58,11 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// try and find an existing policy
-		policy := h.PolicyStorage.FindByRoleAndToken(e.Identity.Role, token.ID)
+		policy := h.PolicyStorage.FindByRoleAndToken(storage.FindPolicyQuery{
+			Role:   e.Identity.Role,
+			Token:  token.ID,
+			Status: recommendations.PolicyStatusActive,
+		})
 		if policy == nil {
 			// create a new policy for the token and role if it doesn't exist
 			policy = &recommendations.Policy{

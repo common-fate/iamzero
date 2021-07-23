@@ -16,6 +16,16 @@ func (s *PolicyStorage) List() []recommendations.Policy {
 	return s.policies
 }
 
+func (s *PolicyStorage) ListForStatus(status string) []recommendations.Policy {
+	policies := []recommendations.Policy{}
+	for _, p := range s.policies {
+		if p.Status == status {
+			policies = append(policies, p)
+		}
+	}
+	return policies
+}
+
 func (s *PolicyStorage) Get(id string) *recommendations.Policy {
 	for _, policy := range s.policies {
 		if policy.ID == id {
@@ -25,10 +35,16 @@ func (s *PolicyStorage) Get(id string) *recommendations.Policy {
 	return nil
 }
 
+type FindPolicyQuery struct {
+	Role   string
+	Token  string
+	Status string
+}
+
 // FindByRoleAndToken finds a matching policy by its role and token
-func (s *PolicyStorage) FindByRoleAndToken(role, token string) *recommendations.Policy {
+func (s *PolicyStorage) FindByRoleAndToken(q FindPolicyQuery) *recommendations.Policy {
 	for _, policy := range s.policies {
-		if policy.Identity.Role == role && policy.Token.ID == token {
+		if policy.Identity.Role == q.Role && policy.Token.ID == q.Token && policy.Status == q.Status {
 			return &policy
 		}
 	}

@@ -1,4 +1,4 @@
-import { InfoOutlineIcon } from "@chakra-ui/icons";
+import { CheckIcon, InfoOutlineIcon } from "@chakra-ui/icons";
 import {
   Badge,
   Box,
@@ -23,6 +23,7 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
   useClipboard,
 } from "@chakra-ui/react";
@@ -31,10 +32,11 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 import {
   editAction,
   EditActionRequestBody,
+  setPolicyStatus,
   useActionsForPolicy,
   usePolicy,
 } from "../api";
-import { Action } from "../api-types";
+import { Action, PolicyStatus } from "../api-types";
 import { CenteredSpinner } from "../components/CenteredSpinner";
 import { KeyValueBadge } from "../components/KeyValueBadge";
 import { RelativeDateText } from "../components/LastUpdatedText";
@@ -42,8 +44,8 @@ import { S3Icon } from "../icons";
 import { getAlertTitle } from "../utils/getAlertTitle";
 import { getEventCountString } from "../utils/getEventCountString";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
-import { MOCK_RESOURCES } from "./Policies";
 import produce from "immer";
+import { MOCK_RESOURCES } from "../utils/mockData";
 
 const PolicyDetails: React.FC = () => {
   const { policyId } = useParams<{ policyId: string }>();
@@ -79,6 +81,11 @@ const PolicyDetails: React.FC = () => {
   }
 
   if (policy === undefined || actions === undefined) return <CenteredSpinner />;
+
+  const onSetPolicyStatus = async (status: PolicyStatus) => {
+    await setPolicyStatus(policy.id, status);
+    void mutate({ ...policy, status });
+  };
 
   const onUpdateActionEnabled = async (
     action: Action,
@@ -123,7 +130,7 @@ const PolicyDetails: React.FC = () => {
           spacing={8}
         >
           <Stack spacing={5}>
-            <Stack spacing={4} bgColor="blue.50" p={3} pb={6}>
+            <Stack spacing={4} bgColor="blue.50" p={3}>
               <Flex
                 direction="row"
                 justify="space-between"
@@ -144,16 +151,34 @@ const PolicyDetails: React.FC = () => {
                 </HStack>
               </Flex>
               <HStack>
-                <Button colorScheme="blue" size="sm">
-                  Resolve
-                </Button>
-                <Button colorScheme="blue" variant="outline" size="sm">
+                {policy.status === "active" ? (
+                  <Button
+                    leftIcon={<CheckIcon />}
+                    colorScheme="blue"
+                    variant="outline"
+                    size="xs"
+                    onClick={() => onSetPolicyStatus("resolved")}
+                  >
+                    Resolve
+                  </Button>
+                ) : (
+                  <Tooltip hasArrow label="Unresolve">
+                    <IconButton
+                      size="xs"
+                      colorScheme="blue"
+                      icon={<CheckIcon />}
+                      aria-label="Unresolve"
+                      onClick={() => onSetPolicyStatus("active")}
+                    />
+                  </Tooltip>
+                )}
+                <Button colorScheme="blue" variant="outline" size="xs">
                   View in AWS Console
                 </Button>
                 <Button
                   colorScheme="blue"
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   onClick={onCopy}
                 >
                   {hasCopied ? "Policy Copied!" : "Copy Policy"}

@@ -85,6 +85,7 @@ func API(cfg *APIConfig) http.Handler {
 				r.Get("/", handlers.ListPolicies)
 				r.Get("/{policyID}", handlers.GetPolicy)
 				r.Get("/{policyID}/actions", handlers.ListActionsForPolicy)
+				r.Put("/{policyID}/status", handlers.SetPolicyStatus)
 			})
 		})
 	})

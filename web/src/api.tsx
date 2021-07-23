@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Action, Policy, Token } from "./api-types";
+import { Action, Policy, PolicyStatus, Token } from "./api-types";
 
 /**
  * Adds the x-iamzero-token header to auth requests.
@@ -62,10 +62,13 @@ export const useAlerts = () =>
     revalidateOnFocus: true,
   });
 
-export const usePolicies = () =>
-  useSWR<Policy[]>("/api/v1/policies", {
-    revalidateOnFocus: true,
-  });
+export const usePolicies = (status?: PolicyStatus) =>
+  useSWR<Policy[]>(
+    status ? `/api/v1/policies?status=${status}` : `/api/v1/policies`,
+    {
+      revalidateOnFocus: true,
+    }
+  );
 
 export const usePolicy = (policyId: string | null) =>
   useSWR<Policy>(policyId ? `/api/v1/policies/${policyId}` : null);
@@ -90,4 +93,10 @@ export const reviewAlert = (alertId: string, review: AlertReview) =>
   fetchWithAuth(`/api/v1/alerts/${alertId}/review`, {
     method: "POST",
     body: JSON.stringify(review),
+  });
+
+export const setPolicyStatus = (policyId: string, status: PolicyStatus) =>
+  fetchWithAuth(`/api/v1/policies/${policyId}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
   });
