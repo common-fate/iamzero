@@ -21,10 +21,6 @@ const Layout: React.FC<Props> = (props: Props) => {
             path: "/policies",
           },
           {
-            text: "Alerts",
-            path: "/alerts",
-          },
-          {
             text: "Tokens",
             path: "/tokens",
           },
