@@ -14,6 +14,7 @@ import AlertRedirectToPolicy from "./pages/AlertRedirectToPolicy";
 import Policies from "./pages/Policies";
 import PolicyDetails from "./pages/PolicyDetails";
 import Tokens from "./pages/Tokens";
+import theme from "./theme";
 
 function App() {
   return (
@@ -43,7 +44,7 @@ function App() {
 
 const AppProviders: React.FC = ({ children }) => {
   return (
-    <ChakraProvider>
+    <ChakraProvider theme={theme}>
       <Router>
         <QueryParamProvider ReactRouterRoute={Route}>
           <SWRConfig
