@@ -32,7 +32,8 @@ import {
 } from "@chakra-ui/react";
 import produce from "immer";
 import React, { useState } from "react";
-import { Link as RouterLink, useHistory, useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
+import { StringParam, useQueryParam } from "use-query-params";
 import {
   editAction,
   EditActionRequestBody,
@@ -49,7 +50,6 @@ import { getAlertTitle } from "../utils/getAlertTitle";
 import { getEventCountString } from "../utils/getEventCountString";
 import { MOCK_RESOURCES } from "../utils/mockData";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
-import { useQueryParam, StringParam } from "use-query-params";
 
 const PolicyDetails: React.FC = () => {
   const { policyId } = useParams<{ policyId: string }>();
