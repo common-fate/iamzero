@@ -1,6 +1,6 @@
 import { LockIcon } from "@chakra-ui/icons";
 import { chakra, Flex, Heading, Link } from "@chakra-ui/react";
-import { Link as RouterLink } from "react-router-dom";
+import { NavLink as RouterLink } from "react-router-dom";
 import React from "react";
 import DropdownNavButton from "./DropdownNavButton";
 
@@ -60,9 +60,14 @@ export const SimpleNavbar = (props: Props) => {
                   links={navLink.children}
                 />
               ) : (
-                // Dependign on whether you're using SSR (nextjs) or ReactRouter,
-                // you may need to change this link to support active routes
-                <Link to={navLink.path || "#"} mr={3} key={i} as={RouterLink}>
+                <Link
+                  to={navLink.path || "#"}
+                  mr={6}
+                  key={i}
+                  as={RouterLink}
+                  activeStyle={{ fontWeight: "bold" }}
+                  exact
+                >
                   {navLink.text}
                 </Link>
               );
