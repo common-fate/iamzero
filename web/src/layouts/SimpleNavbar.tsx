@@ -30,6 +30,7 @@ export const SimpleNavbar = (props: Props) => {
     <chakra.header
       w="full"
       h="4.5rem"
+      zIndex={100}
       pos="fixed"
       top="0"
       left="0"
