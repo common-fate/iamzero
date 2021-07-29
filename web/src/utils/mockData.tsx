@@ -20,7 +20,7 @@ export const MOCK_ACTIONS: Action[] = [
         region: "ap-southeast-2",
         operation: "CreateBucket",
         parameters: {
-          Account: "123456789",
+          Account: "123456789012",
           Bucket: "iamzero-test-access-bucket",
           CreateBucketConfiguration: {
             LocationConstraint: "ap-southeast-2",
@@ -90,9 +90,9 @@ export const MOCK_POLICIES: Policy[] = [
     id: "1",
     status: "active",
     identity: {
-      account: "123456789",
+      account: "123456789012",
       user: "iamzero-test",
-      role: "arn:aws:iam::123456789:role/iamzero-test-role",
+      role: "arn:aws:iam::123456789012:role/iamzero-test-role",
     },
     eventCount: 31,
     lastUpdated: new Date(),
@@ -108,7 +108,7 @@ export const MOCK_POLICIES: Policy[] = [
           Action: "dynamodb:Query",
           Effect: "Allow",
           Resource: [
-            "arn:aws:dynamodb:ap-southeast-2:123456789:table/IAMZero-dev/index/*",
+            "arn:aws:dynamodb:ap-southeast-2:123456789012:table/IAMZero-dev/index/*",
           ],
         },
       ],
@@ -118,9 +118,9 @@ export const MOCK_POLICIES: Policy[] = [
     id: "2",
     status: "active",
     identity: {
-      account: "123456789",
+      account: "123456789012",
       user: "second-role",
-      role: "arn:aws:iam::123456789:role/iamzero-test-role",
+      role: "arn:aws:iam::123456789012:role/iamzero-test-role",
     },
     eventCount: 5,
     lastUpdated: new Date(),
@@ -136,7 +136,7 @@ export const MOCK_POLICIES: Policy[] = [
           Action: "dynamodb:Query",
           Effect: "Allow",
           Resource: [
-            "arn:aws:dynamodb:ap-southeast-2:123456789:table/IAMZero-dev/index/*",
+            "arn:aws:dynamodb:ap-southeast-2:123456789012:table/IAMZero-dev/index/*",
           ],
         },
       ],

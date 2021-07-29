@@ -53,8 +53,8 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 		// censor info if in demo mode
 		if h.Demo {
 			e.Identity.User = "iamzero-test-user"
-			e.Identity.Role = "arn:aws:iam::123456789:role/iamzero-test-role"
-			e.Identity.Account = "123456789"
+			e.Identity.Role = "arn:aws:iam::123456789012:role/iamzero-test-role"
+			e.Identity.Account = "123456789012"
 		}
 
 		// try and find an existing policy
