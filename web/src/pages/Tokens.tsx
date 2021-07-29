@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Container,
   FormControl,
   FormLabel,
   Input,
@@ -46,7 +47,7 @@ const Tokens: React.FC = () => {
   if (data === undefined) return <Spinner />;
 
   return (
-    <>
+    <Container maxW="1200px" py={5}>
       {data.tokens.length === 0 ? (
         <Text textAlign="center">
           No tokens!{" "}
@@ -99,7 +100,7 @@ const Tokens: React.FC = () => {
           </ModalContent>
         </Modal>
       )}
-    </>
+    </Container>
   );
 };
 

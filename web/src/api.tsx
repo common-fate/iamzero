@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Alert, Token } from "./api-types";
+import { Action, Policy, PolicyStatus, Token } from "./api-types";
 
 /**
  * Adds the x-iamzero-token header to auth requests.
@@ -7,21 +7,26 @@ import { Alert, Token } from "./api-types";
  * localStorage.
  * Only adds the header if a token is found.
  */
-export const fetchWithAuth = (
+export async function fetchWithAuth<T>(
   path: string,
   init?: RequestInit | undefined,
   token?: string
-) => {
+) {
   const authToken = token ?? localStorage.getItem("iamzeroToken");
   const headers = authToken
     ? { ...init?.headers, "x-iamzero-token": authToken }
     : init?.headers;
 
-  return fetch(path, {
+  const r = await fetch(path, {
     ...init,
-    headers,
+    headers: {
+      ...headers,
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
   });
-};
+  return r.json() as Promise<T>;
+}
 
 export interface GetTokensResponse {
   tokens: Token[];
@@ -32,45 +37,48 @@ export const useTokens = () => useSWR<GetTokensResponse>("/api/v1/tokens");
 export const deleteToken = (tokenId: string) =>
   fetchWithAuth(`/api/v1/tokens/${tokenId}`, {
     method: "DELETE",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
   });
 
 export const createToken = (name: string) =>
   fetchWithAuth(`/api/v1/tokens`, {
     method: "POST",
     body: JSON.stringify({ name }),
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
   });
 
-export const useAlerts = () =>
-  useSWR<Alert[]>("/api/v1/alerts", {
-    refreshInterval: 10000,
+export interface EditActionRequestBody {
+  enabled?: boolean;
+  selectedAdvisoryId?: string;
+}
+
+export const editAction = (actionId: string, body: EditActionRequestBody) =>
+  fetchWithAuth<Policy>(`/api/v1/actions/${actionId}/edit`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+export const useActions = () => useSWR<Action[]>("/api/v1/actions");
+
+export const useAction = (actionId: string | null) =>
+  useSWR<Action>(actionId ? `/api/v1/actions/${actionId}` : null);
+
+export const usePolicies = (status?: PolicyStatus) =>
+  useSWR<Policy[]>(
+    status ? `/api/v1/policies?status=${status}` : `/api/v1/policies`,
+    {
+      revalidateOnFocus: true,
+    }
+  );
+
+export const usePolicy = (policyId: string | null) =>
+  useSWR<Policy>(policyId ? `/api/v1/policies/${policyId}` : null);
+
+export const useActionsForPolicy = (policyId: string | null) =>
+  useSWR<Action[]>(policyId ? `/api/v1/policies/${policyId}/actions` : null, {
     revalidateOnFocus: true,
   });
 
-export interface ReviewApply {
-  Decision: "apply";
-  RecommendationID: string;
-}
-
-export interface ReviewIgnore {
-  Decision: "ignore";
-}
-
-export type AlertReview = ReviewIgnore | ReviewApply;
-
-export const reviewAlert = (alertId: string, review: AlertReview) =>
-  fetchWithAuth(`/api/v1/alerts/${alertId}/review`, {
-    method: "POST",
-    body: JSON.stringify(review),
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
+export const setPolicyStatus = (policyId: string, status: PolicyStatus) =>
+  fetchWithAuth(`/api/v1/policies/${policyId}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
   });

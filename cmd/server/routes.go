@@ -19,13 +19,11 @@ import (
 
 // APIConfig is the configuration struct to build the API handlers
 type APIConfig struct {
-	Shutdown         chan os.Signal
-	Log              *zap.SugaredLogger
-	Tracer           trace.Tracer
-	TokenStore       tokens.TokenStorer
-	Token            string
-	Demo             bool
-	ProxyAuthEnabled bool
+	Shutdown   chan os.Signal
+	Log        *zap.SugaredLogger
+	Tracer     trace.Tracer
+	TokenStore tokens.TokenStorer
+	Demo       bool
 }
 
 // API constructs an http.Handler with all application routes defined.
@@ -39,10 +37,11 @@ func API(cfg *APIConfig) http.Handler {
 	app.Get("/api/v1/health", check.Health)
 
 	handlers := api.Handlers{
-		Log:        cfg.Log,
-		Demo:       cfg.Demo,
-		TokenStore: cfg.TokenStore,
-		Storage:    storage.NewAlertStorage(),
+		Log:           cfg.Log,
+		Demo:          cfg.Demo,
+		TokenStore:    cfg.TokenStore,
+		ActionStorage: storage.NewAlertStorage(),
+		PolicyStorage: storage.NewPolicyStorage(),
 	}
 
 	// Main application routes
@@ -71,12 +70,20 @@ func API(cfg *APIConfig) http.Handler {
 				r.Delete("/{tokenID}", handlers.DeleteToken)
 			})
 
-			r.Route("/alerts", func(r chi.Router) {
-				r.Get("/", handlers.ListAlerts)
+			r.Route("/actions", func(r chi.Router) {
+				r.Get("/", handlers.ListActions)
 
-				r.Route("/{alertID}", func(r chi.Router) {
-					r.Post("/review", handlers.ReviewAlert)
+				r.Route("/{actionID}", func(r chi.Router) {
+					r.Get("/", handlers.GetAction)
+					r.Put("/edit", handlers.EditAction)
 				})
+			})
+
+			r.Route("/policies", func(r chi.Router) {
+				r.Get("/", handlers.ListPolicies)
+				r.Get("/{policyID}", handlers.GetPolicy)
+				r.Get("/{policyID}/actions", handlers.ListActionsForPolicy)
+				r.Put("/{policyID}/status", handlers.SetPolicyStatus)
 			})
 		})
 	})

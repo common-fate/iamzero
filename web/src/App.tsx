@@ -1,4 +1,4 @@
-import { ChakraProvider, Container } from "@chakra-ui/react";
+import { ChakraProvider } from "@chakra-ui/react";
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -7,31 +7,36 @@ import {
   Switch,
 } from "react-router-dom";
 import { SWRConfig } from "swr";
+import { QueryParamProvider } from "use-query-params";
 import { fetchWithAuth } from "./api";
 import Layout from "./layouts/Layout";
-import Alerts from "./pages/Alerts";
+import AlertRedirectToPolicy from "./pages/AlertRedirectToPolicy";
+import Policies from "./pages/Policies";
+import PolicyDetails from "./pages/PolicyDetails";
 import Tokens from "./pages/Tokens";
+import theme from "./theme";
 
 function App() {
   return (
     <AppProviders>
       <Layout>
-        <Container maxW="1200px" py={5}>
-          <Switch>
-            <Route path="/" exact>
-              <Redirect to="/alerts" />
-            </Route>
-            <Route path="/alerts" exact>
-              <Alerts />
-            </Route>
-            <Route path="/tokens" exact>
-              <Tokens />
-            </Route>
-            <Route path="/alerts/:alertId">
-              <Alerts />
-            </Route>
-          </Switch>
-        </Container>
+        <Switch>
+          <Route path="/" exact>
+            <Redirect to="/policies" />
+          </Route>
+          <Route path="/policies" exact>
+            <Policies />
+          </Route>
+          <Route path="/policies/:policyId">
+            <PolicyDetails />
+          </Route>
+          <Route path="/tokens" exact>
+            <Tokens />
+          </Route>
+          <Route path="/alerts/:alertId">
+            <AlertRedirectToPolicy />
+          </Route>
+        </Switch>
       </Layout>
     </AppProviders>
   );
@@ -39,16 +44,17 @@ function App() {
 
 const AppProviders: React.FC = ({ children }) => {
   return (
-    <ChakraProvider>
+    <ChakraProvider theme={theme}>
       <Router>
-        <SWRConfig
-          value={{
-            fetcher: (resource, init) =>
-              fetchWithAuth(resource, init).then((res) => res.json()),
-          }}
-        >
-          {children}
-        </SWRConfig>
+        <QueryParamProvider ReactRouterRoute={Route}>
+          <SWRConfig
+            value={{
+              fetcher: (resource, init) => fetchWithAuth(resource, init),
+            }}
+          >
+            {children}
+          </SWRConfig>
+        </QueryParamProvider>
       </Router>
     </ChakraProvider>
   );

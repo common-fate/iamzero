@@ -16,13 +16,17 @@
     "@types/react": "^17.0.0",
     "@types/react-dom": "^17.0.0",
     "framer-motion": "^4",
+    "immer": "^9.0.5",
+    "query-string": "5.1.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
+    "react-icons": "^4.2.0",
     "react-router-dom": "^5.2.0",
     "react-scripts": "4.0.3",
     "swr": "^0.5.5",
     "timeago.js": "^4.0.2",
     "typescript": "^4.1.2",
+    "use-query-params": "1.1.8",
     "web-vitals": "^1.0.1"
   },
   "scripts": {

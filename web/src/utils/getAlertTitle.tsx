@@ -1,4 +1,4 @@
-import { Alert } from "../api-types";
+import { Action } from "../api-types";
 
-export const getAlertTitle = (alert: Alert) =>
+export const getAlertTitle = (alert: Action) =>
   `${alert.event.data.service}:${alert.event.data.operation}`;

@@ -1,4 +1,8 @@
-package events
+package recommendations
+
+import (
+	"go.uber.org/zap"
+)
 
 const (
 	AlertActive   = "active"
@@ -46,4 +50,29 @@ type AWSIAMStatement struct {
 
 type AWSIAMPrincipal struct {
 	AWS string
+}
+
+// AdviceFactory generates Advice based on a provided event
+type AdviceFactory = func(e AWSEvent) (Advice, error)
+
+type Advisor struct {
+	AlertsMapping map[string][]AdviceFactory
+}
+
+type Description struct {
+	AppliedTo string
+	Type      string
+	Policy    interface{}
+}
+
+type RecommendationDetails struct {
+	ID          string
+	Comment     string
+	Description []Description
+}
+
+type Advice interface {
+	Apply(log *zap.SugaredLogger) error
+	GetID() string
+	Details() RecommendationDetails
 }

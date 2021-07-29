@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
-	"github.com/common-fate/iamzero/pkg/events"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -31,7 +30,7 @@ type KMSRecommendation struct {
 // If it exists, a recommendation is created to add a grant to the KMS key
 // itself to allow the role to access it, as well as updating the IAM policy
 // associated with the role to allow it to access the key.
-func dynamoDBkmsRecommendation(e events.AWSEvent) (Advice, error) {
+func dynamoDBkmsRecommendation(e AWSEvent) (Advice, error) {
 	ctx := context.TODO()
 	if e.Data.Service == "dynamodb" &&
 		e.Data.Operation == "GetItem" &&
@@ -141,9 +140,9 @@ func (r *KMSRecommendation) getDescription() []Description {
 		{
 			AppliedTo: r.RoleARN,
 			Type:      "IAM Policy",
-			Policy: events.AWSIAMPolicy{
+			Policy: AWSIAMPolicy{
 				Version: "2012-10-17",
-				Statement: []events.AWSIAMStatement{
+				Statement: []AWSIAMStatement{
 					{
 						Sid:    "iamzero",
 						Effect: "Allow",
