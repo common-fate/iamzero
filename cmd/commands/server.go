@@ -55,7 +55,6 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 	fs.DurationVar(&cfg.ReadTimeout, "read-timeout", 5*time.Second, "server read timeout duration (can be set via IAMZERO_READ_TIMEOUT env var)")
 	fs.DurationVar(&cfg.WriteTimeout, "write-timeout", 5*time.Second, "server write timeout duration (can be set via IAMZERO_WRITE_TIMEOUT env var)")
 	fs.DurationVar(&cfg.ShutdownTimeout, "shutdown-timeout", 5*time.Second, "server shutdown timeout duration (can be set via IAMZERO_SHUTDOWN_TIMEOUT env var)")
-	fs.StringVar(&cfg.Token, "token", "", "authentication token (can be set via IAMZERO_TOKEN env var)")
 	fs.StringVar(&cfg.TokenStorageBackend, "token-storage-backend", "dynamodb", "token storage backend (must be 'dynamodb' or 'inmemory')")
 	fs.StringVar(&cfg.TokenStorageDynamoDBTableName, "token-storage-dynamodb-table-name", "dynamodb", "the token storage table name (only for DynamoDB token storage backend)")
 	fs.BoolVar(&cfg.ProxyAuthEnabled, "proxy-auth-enabled", false, "use a reverse proxy to handle user authentication")
@@ -77,12 +76,7 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 	logProd, err := zap.NewProduction()
 	if err != nil {
-		syslog.Fatalf("can't initialize zap logger: %v", err)
-	}
-
-	// Simple authentication via IAMZERO_TOKEN env variable
-	if c.Token == "" {
-		syslog.Fatal("IAMZERO_TOKEN variable must be provided")
+		return errors.Wrap(err, "can't initialize zap logger")
 	}
 
 	log := logProd.Sugar().With("ver", version)
@@ -104,16 +98,23 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 	}
 
 	if err != nil {
-		syslog.Fatalf("can't initialize tracing service: %v", err)
+		return errors.Wrap(err, "can't initialize tracing service")
 	}
 
 	// Configure token storage
-	if c.TokenStorageBackend != "dynamodb" {
-		syslog.Fatalf("token storage backend %s is not supported", c.TokenStorageBackend)
+	if c.TokenStorageBackend != "dynamodb" && c.TokenStorageBackend != "inmemory" {
+		return errors.Errorf("token storage backend is not supported, backend=%s", c.TokenStorageBackend)
 	}
-	tokenStore, err := tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName, log, tracer)
-	if err != nil {
-		return err
+
+	var tokenStore tokens.TokenStorer
+
+	if c.TokenStorageBackend == "dynamodb" {
+		tokenStore, err = tokens.NewDynamoDBTokenStorer(ctx, c.TokenStorageDynamoDBTableName, log, tracer)
+		if err != nil {
+			return err
+		}
+	} else if c.TokenStorageBackend == "inmemory" {
+		tokenStore = tokens.NewInMemoryTokenStorer(ctx, log, tracer)
 	}
 
 	// Start the application
@@ -124,13 +125,11 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	apiConfig := server.APIConfig{
-		Shutdown:         shutdown,
-		Log:              log,
-		Tracer:           tracer,
-		Demo:             c.Demo,
-		Token:            c.Token,
-		TokenStore:       tokenStore,
-		ProxyAuthEnabled: c.ProxyAuthEnabled,
+		Shutdown:   shutdown,
+		Log:        log,
+		Tracer:     tracer,
+		Demo:       c.Demo,
+		TokenStore: tokenStore,
 	}
 
 	handler := server.API(&apiConfig)

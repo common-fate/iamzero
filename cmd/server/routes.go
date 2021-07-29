@@ -19,13 +19,11 @@ import (
 
 // APIConfig is the configuration struct to build the API handlers
 type APIConfig struct {
-	Shutdown         chan os.Signal
-	Log              *zap.SugaredLogger
-	Tracer           trace.Tracer
-	TokenStore       tokens.TokenStorer
-	Token            string
-	Demo             bool
-	ProxyAuthEnabled bool
+	Shutdown   chan os.Signal
+	Log        *zap.SugaredLogger
+	Tracer     trace.Tracer
+	TokenStore tokens.TokenStorer
+	Demo       bool
 }
 
 // API constructs an http.Handler with all application routes defined.
