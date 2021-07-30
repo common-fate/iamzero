@@ -40,6 +40,7 @@ const Tokens: React.FC = () => {
     if (tokenName !== "") {
       await createToken(tokenName);
       onClose();
+      setTokenName("");
       await revalidate();
     }
   };
