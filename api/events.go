@@ -103,6 +103,7 @@ func (h *Handlers) CreateEventBatch(w http.ResponseWriter, r *http.Request) {
 		if len(advice) > 0 {
 			action.HasRecommendations = true
 			action.Recommendations = advice
+			action.Resources = advice[0].Details().Resources // TODO: we should aggregate resources across different advisories
 			action.SelectedAdvisoryID = advice[0].GetID()
 		}
 

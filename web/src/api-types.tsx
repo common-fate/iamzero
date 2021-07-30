@@ -50,6 +50,12 @@ export interface AWSIAMStatement {
 
 export type AlertStatus = "active" | "fixed" | "applying" | "ignored";
 
+/** A resource such as an AWS S3 bucket */
+export interface Resource {
+  id: string;
+  name: string;
+}
+
 /** An alert that iam-zero has generated recommendations for */
 export interface ActionWithRecommendations {
   id: string;
@@ -58,6 +64,7 @@ export interface ActionWithRecommendations {
   time: Date;
   status: AlertStatus;
   recommendations: Recommendation[];
+  resources: Resource[];
   hasRecommendations: true;
   enabled: boolean;
   selectedAdvisoryId: string;
@@ -71,6 +78,7 @@ export interface UnhandledAction {
   time: Date;
   status: AlertStatus;
   recommendations: null;
+  resources: Resource[];
   hasRecommendations: false;
   enabled: boolean;
   selectedAdvisoryId: string;

@@ -419,17 +419,21 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
               <Text fontWeight="bold">{getAlertTitle(action)}</Text>
             </Flex>
             <Flex w="350px" justify="flex-end">
-              <Box
-                as="span"
-                borderRadius={5}
-                borderWidth="2px"
-                p={1}
-                backgroundColor="gray.100"
-              >
-                <S3Icon h="24px" mr={1} />
-
-                {MOCK_RESOURCES[0].name}
-              </Box>
+              <Stack>
+                {action.resources.map((resource) => (
+                  <Box
+                    key={resource.id}
+                    as="span"
+                    fontSize="xs"
+                    borderRadius={5}
+                    borderWidth="2px"
+                    p={1}
+                    backgroundColor="gray.100"
+                  >
+                    {resource.name}
+                  </Box>
+                ))}
+              </Stack>
             </Flex>
           </Flex>
           <HStack>
