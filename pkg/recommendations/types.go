@@ -68,6 +68,7 @@ type Description struct {
 type RecommendationDetails struct {
 	ID          string
 	Comment     string
+	Resources   []Resource
 	Description []Description
 }
 
