@@ -45,10 +45,8 @@ import { Action, PolicyStatus } from "../api-types";
 import { CenteredSpinner } from "../components/CenteredSpinner";
 import { KeyValueBadge } from "../components/KeyValueBadge";
 import { RelativeDateText } from "../components/LastUpdatedText";
-import { S3Icon } from "../icons";
 import { getAlertTitle } from "../utils/getAlertTitle";
 import { getEventCountString } from "../utils/getEventCountString";
-import { MOCK_RESOURCES } from "../utils/mockData";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
 
 const PolicyDetails: React.FC = () => {
