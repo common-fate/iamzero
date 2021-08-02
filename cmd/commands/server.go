@@ -18,8 +18,6 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -40,6 +38,8 @@ type ServerCommand struct {
 	TokenStorageDynamoDBTableName string
 	ProxyAuthEnabled              bool
 	TracingEnabled                bool
+
+	TracingFactory *tracing.TracingFactory
 }
 
 // NewServerCommand creates a new ffcli.Command
@@ -49,6 +49,8 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 		Out:        out,
 		Demo:       false, // Demo flag is overridden in the `local` command, but is not exposed for the `server` command
 	}
+
+	cfg.TracingFactory = tracing.NewFactory()
 
 	fs := flag.NewFlagSet("iamzero server", flag.ExitOnError)
 	fs.StringVar(&cfg.Host, "host", "0.0.0.0:9090", "the server hostname to listen on (can be set via IAMZERO_HOST env var)")
@@ -60,6 +62,8 @@ func NewServerCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 	fs.BoolVar(&cfg.ProxyAuthEnabled, "proxy-auth-enabled", false, "use a reverse proxy to handle user authentication")
 	fs.BoolVar(&cfg.TracingEnabled, "tracing-enabled", false, "enable OpenTelemetry tracing")
 	rootConfig.RegisterFlags(fs)
+
+	cfg.TracingFactory.AddFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "server",
@@ -88,14 +92,7 @@ func (c *ServerCommand) Exec(ctx context.Context, _ []string) error {
 		}
 	}()
 
-	var tracer trace.Tracer
-
-	if c.TracingEnabled {
-		err = tracing.NewTracingService(ctx, log)
-		tracer = otel.Tracer("iamzero.dev/server")
-	} else {
-		tracer = trace.NewNoopTracerProvider().Tracer("")
-	}
+	tracer, err := c.TracingFactory.InitializeTracer(ctx)
 
 	if err != nil {
 		return errors.Wrap(err, "can't initialize tracing service")
