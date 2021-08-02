@@ -33,17 +33,25 @@ ARG VERSION
 COPY . .
 COPY web/build.go web/build.go
 
-RUN go build -ldflags "-X commands.version=$VERSION" -o bin/iamzero-server cmd/main.go
+RUN go build -ldflags "-X commands.version=$VERSION" -o bin/iamzero-all-in-one cmd/all-in-one/main.go
 
 FROM alpine:3.13.5
 
 WORKDIR /app
 
-COPY --from=server_builder /app/bin/iamzero-server /app/iamzero-server
+COPY --from=server_builder /app/bin/iamzero-all-in-one /app/iamzero-all-in-one
 
-# set HTTP ingress port to standard port 80
-ENV IAMZERO_HOST=0.0.0.0:80 
+# set HTTP ingress port
+ENV IAMZERO_COLLECTOR_HOST=0.0.0.0:14321
+ENV IAMZERO_CONSOLE_HOST=0.0.0.0:13991
 
-EXPOSE 80
+# Web HTTP
+EXPOSE 14321
 
-CMD /app/iamzero-server server
+# Collector HTTP
+EXPOSE 13991
+
+# Healthcheck
+EXPOSE 10866
+
+CMD /app/iamzero-all-in-one

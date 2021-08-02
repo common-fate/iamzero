@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/common-fate/iamzero/cmd/collector/app"
+	"github.com/common-fate/iamzero/cmd/console/app"
 	"github.com/common-fate/iamzero/internal/tracing"
 	"github.com/common-fate/iamzero/pkg/service"
 	"github.com/common-fate/iamzero/pkg/storage"
@@ -15,14 +15,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type CollectorCommand struct {
+type ConsoleCommand struct {
 	TracingFactory    *tracing.TracingFactory
 	TokenStoreFactory *tokens.TokensStoreFactory
-	Collector         *app.Collector
+	Collector         *app.Console
 }
 
 func main() {
-	cmd := NewCollectorCommand()
+	cmd := NewConsoleCommand()
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -30,14 +30,14 @@ func main() {
 	}
 }
 
-func NewCollectorCommand() *ffcli.Command {
-	c := CollectorCommand{}
+func NewConsoleCommand() *ffcli.Command {
+	c := ConsoleCommand{}
 
 	c.TracingFactory = tracing.NewFactory()
 	c.TokenStoreFactory = tokens.NewFactory()
 	c.Collector = app.New()
 
-	fs := flag.NewFlagSet("iamzero-collector", flag.ExitOnError)
+	fs := flag.NewFlagSet("iamzero-console", flag.ExitOnError)
 
 	// register CLI flags for other components
 	c.TracingFactory.AddFlags(fs)
@@ -45,15 +45,15 @@ func NewCollectorCommand() *ffcli.Command {
 	c.Collector.AddFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "iamzero-collector",
-		ShortUsage: "IAM Zero collector receives events dispatched by IAM Zero clients",
-		ShortHelp:  "Run an IAM Zero collector.",
+		Name:       "iamzero-console",
+		ShortUsage: "IAM Zero console serves the IAM Zero web application and API",
+		ShortHelp:  "Run an IAM Zero console.",
 		FlagSet:    fs,
 		Exec:       c.Exec,
 	}
 }
 
-func (c *CollectorCommand) Exec(ctx context.Context, _ []string) error {
+func (c *ConsoleCommand) Exec(ctx context.Context, _ []string) error {
 	svc := service.NewService(10866)
 	if err := svc.Start(); err != nil {
 		return err
@@ -73,9 +73,9 @@ func (c *CollectorCommand) Exec(ctx context.Context, _ []string) error {
 	actionStorage := storage.NewAlertStorage()
 	policyStorage := storage.NewPolicyStorage()
 
-	co := c.Collector
+	console := c.Collector
 
-	if err := co.Start(&app.CollectorOptions{
+	if err := console.Start(&app.ConsoleOptions{
 		Logger:        log,
 		Tracer:        tracer,
 		TokenStore:    store,
@@ -86,8 +86,8 @@ func (c *CollectorCommand) Exec(ctx context.Context, _ []string) error {
 	}
 
 	svc.RunAndThen(func() {
-		if err := co.Close(); err != nil {
-			log.Fatal("failed to close collector", zap.Error(err))
+		if err := console.Close(); err != nil {
+			log.Fatal("failed to close console", zap.Error(err))
 		}
 	})
 	return nil

@@ -12,26 +12,24 @@ import (
 	"go.uber.org/zap"
 )
 
-type Collector struct {
+type Console struct {
 	log           *zap.SugaredLogger
 	tracer        trace.Tracer
 	tokenStore    tokens.TokenStorer
-	demo          bool
 	actionStorage *storage.ActionStorage
 	policyStorage *storage.PolicyStorage
 
 	Host string
-	Demo bool
 
 	// used to hold the server so that we can shut it down
 	httpServer *http.Server
 }
 
-func New() *Collector {
-	return &Collector{}
+func New() *Console {
+	return &Console{}
 }
 
-type CollectorOptions struct {
+type ConsoleOptions struct {
 	Logger        *zap.SugaredLogger
 	Tracer        trace.Tracer
 	TokenStore    tokens.TokenStorer
@@ -39,26 +37,25 @@ type CollectorOptions struct {
 	PolicyStorage *storage.PolicyStorage
 }
 
-func (c *Collector) AddFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.Host, "collector-host", "0.0.0.0:13991", "the collector hostname to listen on")
-	fs.BoolVar(&c.Demo, "collector-demo", false, "run in demo mode, censoring AWS role info")
+func (c *Console) AddFlags(fs *flag.FlagSet) {
+	fs.StringVar(&c.Host, "console-host", "0.0.0.0:14321", "the console hostname to listen on")
 }
 
-func (c *Collector) Start(opts *CollectorOptions) error {
+func (c *Console) Start(opts *ConsoleOptions) error {
 	c.log = opts.Logger
 	c.tracer = opts.Tracer
 	c.tokenStore = opts.TokenStore
 	c.actionStorage = opts.ActionStorage
 	c.policyStorage = opts.PolicyStorage
 
-	c.log.With("collector-host", c.Host).Info("starting IAM Zero collector server")
+	c.log.With("console-host", c.Host).Info("starting IAM Zero console")
 
 	errorLog, _ := zap.NewStdLogAt(c.log.Desugar(), zap.ErrorLevel)
 
 	server := &http.Server{
 		Addr:     c.Host,
 		ErrorLog: errorLog,
-		Handler:  c.GetCollectorRoutes(),
+		Handler:  c.GetConsoleRoutes(),
 	}
 
 	c.httpServer = server
@@ -67,7 +64,7 @@ func (c *Collector) Start(opts *CollectorOptions) error {
 		err := server.ListenAndServe()
 		if err != nil {
 			if err != http.ErrServerClosed {
-				c.log.Errorw("Could not start HTTP collector", zap.Error(err))
+				c.log.Errorw("Could not start console HTTP server", zap.Error(err))
 			}
 		}
 	}()
@@ -75,11 +72,11 @@ func (c *Collector) Start(opts *CollectorOptions) error {
 	return nil
 }
 
-func (c *Collector) Close() error {
+func (c *Console) Close() error {
 	if c.httpServer != nil {
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := c.httpServer.Shutdown(timeout); err != nil {
-			c.log.Fatal("failed to stop the collector HTTP server", "error", err)
+			c.log.Fatal("failed to stop the console HTTP server", "error", err)
 		}
 		defer cancel()
 	}
