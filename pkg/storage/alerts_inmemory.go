@@ -2,19 +2,23 @@ package storage
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/common-fate/iamzero/pkg/recommendations"
 )
 
 type ActionStorage struct {
+	sync.RWMutex
 	actions []recommendations.AWSAction
 }
 
-func NewAlertStorage() ActionStorage {
-	return ActionStorage{actions: []recommendations.AWSAction{}}
+func NewAlertStorage() *ActionStorage {
+	return &ActionStorage{actions: []recommendations.AWSAction{}}
 }
 
 func (a *ActionStorage) Add(action recommendations.AWSAction) {
+	a.Lock()
+	defer a.Unlock()
 	a.actions = append(a.actions, action)
 }
 
@@ -44,6 +48,8 @@ func (a *ActionStorage) ListForPolicy(policyID string) []recommendations.AWSActi
 }
 
 func (a *ActionStorage) SetStatus(id string, status string) error {
+	a.Lock()
+	defer a.Unlock()
 	for i, alert := range a.actions {
 		if alert.ID == id {
 			a.actions[i].Status = status
@@ -54,6 +60,8 @@ func (a *ActionStorage) SetStatus(id string, status string) error {
 }
 
 func (s *ActionStorage) Update(action recommendations.AWSAction) error {
+	s.Lock()
+	defer s.Unlock()
 	for i, a := range s.actions {
 		if a.ID == action.ID {
 			s.actions[i] = action

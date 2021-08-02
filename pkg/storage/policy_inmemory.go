@@ -1,15 +1,18 @@
 package storage
 
 import (
+	"sync"
+
 	"github.com/common-fate/iamzero/pkg/recommendations"
 )
 
 type PolicyStorage struct {
+	sync.RWMutex
 	policies []recommendations.Policy
 }
 
-func NewPolicyStorage() PolicyStorage {
-	return PolicyStorage{policies: []recommendations.Policy{}}
+func NewPolicyStorage() *PolicyStorage {
+	return &PolicyStorage{policies: []recommendations.Policy{}}
 }
 
 func (s *PolicyStorage) List() []recommendations.Policy {
@@ -52,6 +55,8 @@ func (s *PolicyStorage) FindByRoleAndToken(q FindPolicyQuery) *recommendations.P
 }
 
 func (s *PolicyStorage) CreateOrUpdate(policy recommendations.Policy) error {
+	s.Lock()
+	defer s.Unlock()
 	for i, p := range s.policies {
 		if p.ID == policy.ID {
 			s.policies[i] = policy
