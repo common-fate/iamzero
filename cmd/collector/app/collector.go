@@ -79,7 +79,7 @@ func (c *Collector) Close() error {
 	if c.httpServer != nil {
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := c.httpServer.Shutdown(timeout); err != nil {
-			c.log.Fatal("failed to stop the collector HTTP server", "error", err)
+			c.log.With(zap.Error(err)).Fatal("failed to stop the collector HTTP server")
 		}
 		defer cancel()
 	}
