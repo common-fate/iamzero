@@ -2,7 +2,9 @@ package service
 
 import (
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/common-fate/iamzero/pkg/healthcheck"
 	"github.com/pkg/errors"
@@ -29,6 +31,8 @@ type Service struct {
 func NewService(adminPort int) *Service {
 	signalsChannel := make(chan os.Signal, 1)
 	hcStatusChannel := make(chan healthcheck.Status)
+	signal.Notify(signalsChannel, os.Interrupt, syscall.SIGTERM)
+
 	return &Service{
 		Admin:           NewAdminServer(portToHostPort(adminPort)),
 		signalsChannel:  signalsChannel,

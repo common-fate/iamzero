@@ -5,18 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	syslog "log"
-	"net/http"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path"
 	"runtime"
-	"strconv"
 	"syscall"
-	"time"
 
-	"github.com/common-fate/iamzero/cmd/server"
+	collectorApp "github.com/common-fate/iamzero/cmd/collector/app"
+	consoleApp "github.com/common-fate/iamzero/cmd/console/app"
+
+	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/pkg/errors"
@@ -29,20 +29,29 @@ import (
 type LocalCommand struct {
 	rootConfig *RootConfig
 	out        io.Writer
-	port       int
-	demo       bool
+
+	Collector *collectorApp.Collector
+	Console   *consoleApp.Console
 }
 
 // LocalCommand creates a new ffcli.Command
 func NewLocalCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
-	cfg := LocalCommand{
+	c := LocalCommand{
 		rootConfig: rootConfig,
 		out:        out,
 	}
 
+	c.Collector = collectorApp.New()
+	c.Console = consoleApp.New()
+
 	fs := flag.NewFlagSet("iamzero local", flag.ExitOnError)
-	fs.IntVar(&cfg.port, "p", 9090, "the local port to run the iamzero server on")
-	fs.BoolVar(&cfg.demo, "demo", false, "run in demo mode (censors AWS account information)")
+
+	// register CLI flags for other components
+	c.Collector.AddFlags(fs)
+	c.Console.AddFlags(fs)
+
+	// fs.IntVar(&cfg.port, "p", 9090, "the local port to run the iamzero server on")
+	// fs.BoolVar(&cfg.demo, "demo", false, "run in demo mode (censors AWS account information)")
 	rootConfig.RegisterFlags(fs)
 
 	return &ffcli.Command{
@@ -50,7 +59,7 @@ func NewLocalCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 		ShortUsage: "iamzero local [flags] [<prefix>]",
 		ShortHelp:  "Run a local iamzero server",
 		FlagSet:    fs,
-		Exec:       cfg.Exec,
+		Exec:       c.Exec,
 	}
 }
 
@@ -60,20 +69,12 @@ func (c *LocalCommand) log(a ...interface{}) {
 
 // Exec function for this command.
 func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
-
 	logProd, err := zap.NewProduction()
 	if err != nil {
 		return errors.Wrap(err, "can't initialize zap logger")
 	}
 
-	log := logProd.Sugar().With("ver", version)
-
-	defer func() {
-		err = log.Sync()
-		if err != nil {
-			syslog.Fatalf("error closing log: %v", err)
-		}
-	}()
+	log := logProd.Sugar()
 
 	tracer := trace.NewNoopTracerProvider().Tracer("")
 
@@ -87,7 +88,12 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 	}
 	file := path.Join(home, ".iamzero.ini")
 
-	url := "http://localhost:" + strconv.Itoa(c.port)
+	// force the host to be `localhost`
+	_, port, _ := net.SplitHostPort(c.Console.Host)
+	_, collectorPort, _ := net.SplitHostPort(c.Collector.Host)
+
+	url := fmt.Sprintf("http://localhost:%s", port)
+	collectorUrl := fmt.Sprintf("http://localhost:%s", collectorPort)
 
 	// we use the inmemory token storage backend to allow users to test
 	// IAM Zero without depending on external dependencies like caches or databases
@@ -111,9 +117,9 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 		cfgFile.Section("iamzero").Key("token").SetValue(token.ID)
 		savedUrl := cfgFile.Section("iamzero").Key("url")
 
-		if savedUrl.String() != url {
-			c.log("The URL in your config file (" + savedUrl.String() + ") was different to the URL your local iamzero server will run on (" + url + "). Updating your config file URL to be " + url + "...")
-			savedUrl.SetValue(url)
+		if savedUrl.String() != collectorUrl {
+			c.log("The URL in your config file (" + savedUrl.String() + ") was different to the URL your local iamzero server will run on (" + collectorUrl + "). Updating your config file URL to be " + collectorUrl + "...")
+			savedUrl.SetValue(collectorUrl)
 		}
 		err = cfgFile.SaveTo(file)
 		if err != nil {
@@ -157,44 +163,32 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	apiConfig := server.APIConfig{
-		Shutdown:   shutdown,
-		Log:        log,
-		Tracer:     tracer,
-		Demo:       c.demo,
-		TokenStore: tokenStore,
+	actionStorage := storage.NewAlertStorage()
+	policyStorage := storage.NewPolicyStorage()
+
+	if err := c.Collector.Start(&collectorApp.CollectorOptions{
+		Logger:        log,
+		Tracer:        tracer,
+		TokenStore:    tokenStore,
+		ActionStorage: actionStorage,
+		PolicyStorage: policyStorage,
+	}); err != nil {
+		return err
 	}
 
-	handler := server.API(&apiConfig)
-
-	host := "127.0.0.1:" + strconv.Itoa(c.port)
-	// set reasonable defaults here to avoid complexity exposing these as CLI args
-	readTimeout := 5 * time.Second
-	writeTimeout := 5 * time.Second
-	shutdownTimeout := 5 * time.Second
-
-	api := http.Server{
-		Addr:         host,
-		Handler:      handler,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
-	}
-
-	log.With("host", host).Info("Starting server")
-
-	if apiConfig.Demo {
-		log.Info("Running in DEMO mode. AWS details will be censored")
+	if err := c.Console.Start(&consoleApp.ConsoleOptions{
+		Logger:        log,
+		Tracer:        tracer,
+		TokenStore:    tokenStore,
+		ActionStorage: actionStorage,
+		PolicyStorage: policyStorage,
+	}); err != nil {
+		return err
 	}
 
 	// Make a channel to listen for errors coming from the listener. Use a
 	// buffered channel so the goroutine can exit if we don't collect this error.
 	serverErrors := make(chan error, 1)
-
-	// Start the service listening for requests.
-	go func() {
-		log.Infof("main : API listening on %s", api.Addr)
-		serverErrors <- api.ListenAndServe()
-	}()
 
 	// =========================================================================
 	// Shutdown
@@ -206,16 +200,11 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 
 	case sig := <-shutdown:
 		log.Infof("main : %v : Start shutdown", sig)
-
-		// Give outstanding requests a deadline for completion.
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-
-		// Asking listener to shutdown and load shed.
-		err := api.Shutdown(ctx)
-		if err != nil {
-			log.Infof("main : Graceful shutdown did not complete in %v : %v", shutdownTimeout, err)
-			return api.Close()
+		if err := c.Collector.Close(); err != nil {
+			log.Fatal("failed to close collector", zap.Error(err))
+		}
+		if err := c.Console.Close(); err != nil {
+			log.Fatal("failed to close console", zap.Error(err))
 		}
 	}
 	return err

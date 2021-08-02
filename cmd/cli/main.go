@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/common-fate/iamzero/cmd/commands"
+	"github.com/common-fate/iamzero/cmd/cli/commands"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 )
@@ -15,12 +15,10 @@ func main() {
 		out                     = os.Stdout
 		rootCommand, rootConfig = commands.RootCommand()
 		localCommand            = commands.NewLocalCommand(rootConfig, out)
-		serverCommand           = commands.NewServerCommand(rootConfig, out)
 	)
 
 	rootCommand.Subcommands = []*ffcli.Command{
 		localCommand,
-		serverCommand,
 	}
 
 	if err := rootCommand.Parse(os.Args[1:]); err != nil {
