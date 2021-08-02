@@ -87,7 +87,10 @@ func (hc *HealthCheck) Handler() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(template.statusCode)
 
-		w.Write(hc.createRespBody(state, template))
+		_, err := w.Write(hc.createRespBody(state, template))
+		if err != nil {
+			hc.logger.Error("error writing healthcheck response", zap.Error(err))
+		}
 	})
 }
 
