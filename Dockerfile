@@ -42,8 +42,8 @@ WORKDIR /app
 COPY --from=server_builder /app/bin/iamzero-all-in-one /app/iamzero-all-in-one
 
 # set HTTP ingress port
-ENV IAMZERO_COLLECTOR_HOST=0.0.0.0:14321
-ENV IAMZERO_CONSOLE_HOST=0.0.0.0:13991
+ENV IAMZERO_COLLECTOR_HOST=0.0.0.0:13991
+ENV IAMZERO_CONSOLE_HOST=0.0.0.0:14321
 
 # Web HTTP
 EXPOSE 14321
