@@ -12,7 +12,7 @@ import (
 	"github.com/common-fate/iamzero/pkg/service"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
-	"github.com/peterbourgon/ff"
+	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"go.uber.org/zap"
 )

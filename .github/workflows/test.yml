@@ -40,7 +40,7 @@ jobs:
           touch web/build/ignore
 
       - name: Build
-        run: go build cmd/main.go
+        run: go build cmd/all-in-one/main.go
 
       - name: Lint
         run: go vet ./...
