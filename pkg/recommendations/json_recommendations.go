@@ -54,7 +54,7 @@ func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
 		for _, statement := range r.Policy {
 			// the actual ARN of the resource after executing the template
 			// for example, `arn:aws:s3:::test-bucket/test-object`
-			var renderedResources []string
+			renderedResources := []string{}
 
 			for _, resourceTemplate := range statement.Resource {
 				// template out each resource

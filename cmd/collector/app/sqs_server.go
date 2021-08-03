@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/common-fate/iamzero/pkg/recommendations"
+	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -16,10 +17,12 @@ import (
 
 // SQSServer polls an SQS queue to receive events from clients
 type SQSServer struct {
-	log         *zap.SugaredLogger
-	tracer      trace.Tracer
-	client      *sqs.Client
-	queueUrl    string
+	log       *zap.SugaredLogger
+	tracer    trace.Tracer
+	client    *sqs.Client
+	queueUrl  string
+	tokenAuth bool
+
 	workerCount int
 	handler     func(ctx context.Context, msg *types.Message) error
 
@@ -27,9 +30,10 @@ type SQSServer struct {
 }
 
 type SQSServerConfig struct {
-	Log      *zap.SugaredLogger
-	Tracer   trace.Tracer
-	QueueUrl string
+	Log       *zap.SugaredLogger
+	Tracer    trace.Tracer
+	QueueUrl  string
+	TokenAuth bool
 	// A handler for messages
 	Handler func(ctx context.Context, msg *types.Message) error
 }
@@ -50,6 +54,7 @@ func NewSQSServer(ctx context.Context, opts *SQSServerConfig) (*SQSServer, error
 		tracer:      opts.Tracer,
 		client:      client,
 		queueUrl:    opts.QueueUrl,
+		tokenAuth:   opts.TokenAuth,
 		workerCount: workerCount,
 		handler:     opts.Handler,
 	}, nil
@@ -131,20 +136,27 @@ func (c *Collector) HandleSQSMessage(ctx context.Context, msg *types.Message) er
 	if err != nil {
 		return errors.Wrap(err, "unmarshling SQS message body")
 	}
+	var token *tokens.Token
 
-	tokenAttr := msg.MessageAttributes["x-iamzero-token"]
-	tokenID := tokenAttr.StringValue
-	c.log.With("tokenID", tokenID).Info("looking up token")
-	if tokenID == nil {
-		return errors.New("IAM Zero token was not found in SQS message attributes (it must be passed as the x-iamzero-token attribute)")
-	}
+	if c.TransportSQSTokenAuth {
 
-	token, err := c.tokenStore.Get(ctx, *tokenID)
-	if err != nil {
-		return errors.Wrap(err, "retrieving token from tokenStore")
-	}
-	if token == nil {
-		return errors.New("token not found")
+		tokenAttr := msg.MessageAttributes["x-iamzero-token"]
+		tokenID := tokenAttr.StringValue
+		c.log.With("tokenID", tokenID).Info("looking up token")
+		if tokenID == nil {
+			return errors.New("IAM Zero token was not found in SQS message attributes (it must be passed as the x-iamzero-token attribute)")
+		}
+
+		token, err = c.tokenStore.Get(ctx, *tokenID)
+		if err != nil {
+			return errors.Wrap(err, "retrieving token from tokenStore")
+		}
+		if token == nil {
+			return errors.New("token not found")
+		}
+	} else {
+		// ignore any token passed by the client
+		token = nil
 	}
 
 	advisor := recommendations.NewAdvisor()

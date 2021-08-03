@@ -98,7 +98,7 @@ export interface Policy {
   id: string;
   identity: AWSIdentity;
   lastUpdated: Date;
-  token: Token;
+  token?: Token;
   eventCount: number;
   document: AWSIAMPolicy;
   status: PolicyStatus;

@@ -20,10 +20,11 @@ type Collector struct {
 	actionStorage *storage.ActionStorage
 	policyStorage *storage.PolicyStorage
 
-	Host                 string
-	Demo                 bool
-	TransportSQSEnabled  bool
-	TransportSQSQueueURL string
+	Host                  string
+	Demo                  bool
+	TransportSQSEnabled   bool
+	TransportSQSQueueURL  string
+	TransportSQSTokenAuth bool
 
 	// used to hold the server so that we can shut it down
 	httpServer *http.Server
@@ -46,6 +47,7 @@ func (c *Collector) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.Host, "collector-host", "0.0.0.0:13991", "the collector hostname to listen on")
 	fs.BoolVar(&c.Demo, "collector-demo", false, "run in demo mode, censoring AWS role info")
 	fs.BoolVar(&c.TransportSQSEnabled, "transport-sqs-enabled", false, "enable SQS collector transport")
+	fs.BoolVar(&c.TransportSQSTokenAuth, "transport-sqs-token-auth", true, "verify IAM Zero token on events received via SQS")
 	fs.StringVar(&c.TransportSQSQueueURL, "transport-sqs-queue-url", "", "(if SQS transport enabled) the SQS queue URL")
 }
 

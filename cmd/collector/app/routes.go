@@ -111,7 +111,7 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 	// try and find an existing policy
 	policy := c.policyStorage.FindByRoleAndToken(storage.FindPolicyQuery{
 		Role:   e.Identity.Role,
-		Token:  token.ID,
+		Token:  token,
 		Status: recommendations.PolicyStatusActive,
 	})
 	if policy == nil {
@@ -120,7 +120,7 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 			ID:          uuid.NewString(),
 			Identity:    e.Identity,
 			LastUpdated: time.Now(),
-			Token:       *token,
+			Token:       token,
 			EventCount:  0,
 			Status:      "active",
 			Document: recommendations.AWSIAMPolicy{
@@ -144,6 +144,8 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 		Status:             recommendations.AlertActive,
 		Time:               time.Now(),
 		HasRecommendations: false,
+		Resources:          []recommendations.Resource{},
+		Recommendations:    []recommendations.Advice{},
 		Enabled:            true,
 		SelectedAdvisoryID: "",
 	}

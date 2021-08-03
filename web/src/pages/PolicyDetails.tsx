@@ -201,7 +201,9 @@ const PolicyDetails: React.FC = () => {
             <Stack direction="row" wrap="wrap" spacing={3} px={3}>
               <KeyValueBadge label="Role ARN" value={policy.identity.role} />
               <KeyValueBadge label="Account" value={policy.identity.account} />
-              <KeyValueBadge label="Token" value={policy.token.name} />
+              {policy.token && (
+                <KeyValueBadge label="Token" value={policy.token.name} />
+              )}
             </Stack>
             <Text px={3}>
               The actions below have been recorded by IAM Zero for this role.
