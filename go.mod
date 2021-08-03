@@ -3,12 +3,13 @@ module github.com/common-fate/iamzero
 go 1.16
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.7.0
+	github.com/aws/aws-sdk-go-v2 v1.7.1
 	github.com/aws/aws-sdk-go-v2/config v1.4.1
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.1.2
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.4.0
 	github.com/aws/aws-sdk-go-v2/service/iam v1.3.0
 	github.com/aws/aws-sdk-go-v2/service/kms v1.2.2
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.7.0
 	github.com/go-chi/chi v1.5.4
 	github.com/google/uuid v1.2.0
 	github.com/peterbourgon/ff/v3 v3.0.0

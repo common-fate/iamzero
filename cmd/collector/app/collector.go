@@ -20,11 +20,14 @@ type Collector struct {
 	actionStorage *storage.ActionStorage
 	policyStorage *storage.PolicyStorage
 
-	Host string
-	Demo bool
+	Host                 string
+	Demo                 bool
+	TransportSQSEnabled  bool
+	TransportSQSQueueURL string
 
 	// used to hold the server so that we can shut it down
 	httpServer *http.Server
+	sqsServer  *SQSServer
 }
 
 func New() *Collector {
@@ -42,6 +45,8 @@ type CollectorOptions struct {
 func (c *Collector) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.Host, "collector-host", "0.0.0.0:13991", "the collector hostname to listen on")
 	fs.BoolVar(&c.Demo, "collector-demo", false, "run in demo mode, censoring AWS role info")
+	fs.BoolVar(&c.TransportSQSEnabled, "transport-sqs-enabled", false, "enable SQS collector transport")
+	fs.StringVar(&c.TransportSQSQueueURL, "transport-sqs-queue-url", "", "(if SQS transport enabled) the SQS queue URL")
 }
 
 func (c *Collector) Start(opts *CollectorOptions) error {
@@ -72,6 +77,21 @@ func (c *Collector) Start(opts *CollectorOptions) error {
 		}
 	}()
 
+	if c.TransportSQSEnabled {
+		ctx := context.Background()
+		server, err := NewSQSServer(ctx, &SQSServerConfig{
+			Log:      c.log,
+			Tracer:   c.tracer,
+			QueueUrl: c.TransportSQSQueueURL,
+			Handler:  c.HandleSQSMessage,
+		})
+		if err != nil {
+			return err
+		}
+		c.sqsServer = server
+		server.Start(ctx)
+	}
+
 	return nil
 }
 
@@ -80,6 +100,9 @@ func (c *Collector) Close() error {
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := c.httpServer.Shutdown(timeout); err != nil {
 			c.log.With(zap.Error(err)).Fatal("failed to stop the collector HTTP server")
+		}
+		if c.sqsServer != nil {
+			c.sqsServer.Shutdown()
 		}
 		defer cancel()
 	}
