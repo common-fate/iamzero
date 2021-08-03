@@ -79,6 +79,7 @@ func (c *Collector) Start(opts *CollectorOptions) error {
 
 	if c.TransportSQSEnabled {
 		ctx := context.Background()
+
 		server, err := NewSQSServer(ctx, &SQSServerConfig{
 			Log:      c.log,
 			Tracer:   c.tracer,
@@ -89,6 +90,9 @@ func (c *Collector) Start(opts *CollectorOptions) error {
 			return err
 		}
 		c.sqsServer = server
+
+		c.log.With("queue-url", server.QueueUrl()).Info("starting SQS transport listener")
+
 		server.Start(ctx)
 	}
 
