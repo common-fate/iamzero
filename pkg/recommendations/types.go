@@ -36,7 +36,7 @@ type AWSIdentity struct {
 
 type AWSIAMPolicy struct {
 	Version   string
-	Id        *string
+	Id        *string `json:",omitempty"`
 	Statement []AWSIAMStatement
 }
 

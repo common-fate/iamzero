@@ -81,8 +81,7 @@ func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
 			}
 
 			iamStatement := AWSIAMStatement{
-
-				Sid:      "iamzero-" + uuid.NewString(),
+				Sid:      "iamzero" + strings.Replace(uuid.NewString(), "-", "", -1),
 				Effect:   "Allow",
 				Action:   statement.Action,
 				Resource: renderedResources,
