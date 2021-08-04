@@ -2,6 +2,7 @@ package tracing
 
 import (
 	"context"
+	"flag"
 
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -10,13 +11,38 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"go.uber.org/zap"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 )
 
-func NewTracingService(ctx context.Context, log *zap.SugaredLogger) error {
+type TracingFactory struct {
+	Enabled bool
+}
+
+func NewFactory() *TracingFactory {
+	return &TracingFactory{}
+}
+
+func (f *TracingFactory) AddFlags(fs *flag.FlagSet) {
+	fs.BoolVar(&f.Enabled, "tracing-enabled", false, "enable OpenTelemetry tracing")
+}
+
+func (f *TracingFactory) InitializeTracer(ctx context.Context) (trace.Tracer, error) {
+	var tracer trace.Tracer
+	if f.Enabled {
+		if err := setupOtel(ctx); err != nil {
+			return nil, err
+		}
+		tracer = otel.Tracer("iamzero.dev/server")
+	} else {
+		tracer = trace.NewNoopTracerProvider().Tracer("")
+	}
+	return tracer, nil
+}
+
+// setupOtel sets up opentelemetry tracing
+func setupOtel(ctx context.Context) error {
 	endpoint := "localhost:4317"
-	log.With("oltpEndpoint", endpoint).Info("configuring tracing")
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String("iamzero-server"),

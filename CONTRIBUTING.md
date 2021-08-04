@@ -30,10 +30,10 @@ You will see the app on http://localhost:3000 by default.
 To build and run the backend, run the command:
 
 ```
-go run cmd/main.go
+go run cmd/all-in-one/main.go -token-storage-backend=inmemory
 ```
 
-The backend API is served on http://localhost:9090 by default.
+The backend web application API is served on http://localhost:14321 by default. The collector HTTP endpoint, used to receive IAM Zero events from client libraries, is served on http://localhost:13991 by default.
 
 # CloudFormation templates
 
