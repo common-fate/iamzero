@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/common-fate/iamzero/pkg/recommendations"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetRoleOrUserNameFromARN(t *testing.T) {
@@ -43,4 +44,24 @@ func TestGetRoleOrUserNameFromARNWithDemoRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func ParseRealRoleARN_ReplacesAssumedRoleWithActualRole(t *testing.T) {
+	arn := "arn:aws:sts::123456789012:assumed-role/iamzero-test-role/iamzero-test"
+	role, err := recommendations.ExtractRoleARNFromSession(arn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "arn:aws:iam::123456789012:role/iamzero-test-role", role)
+}
+
+func ParseRealRoleARN_ReturnsNilIfAssumedRoleIsNotGiven(t *testing.T) {
+	arn := "arn:aws:iam::123456789012:role/iamzero-test-role"
+	role, err := recommendations.ExtractRoleARNFromSession(arn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Nil(t, role)
 }
