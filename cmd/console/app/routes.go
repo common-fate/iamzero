@@ -46,6 +46,7 @@ func (c *Console) GetConsoleRoutes() *chi.Mux {
 
 			r.Route("/policies", func(r chi.Router) {
 				r.Get("/", handlers.ListPolicies)
+				r.Get("/find", handlers.FindPolicy)
 				r.Get("/{policyID}", handlers.GetPolicy)
 				r.Get("/{policyID}/actions", handlers.ListActionsForPolicy)
 				r.Put("/{policyID}/status", handlers.SetPolicyStatus)
