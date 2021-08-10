@@ -5,6 +5,7 @@ import (
 
 	"github.com/common-fate/iamzero/api/io"
 	"github.com/common-fate/iamzero/pkg/recommendations"
+	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/go-chi/chi"
 )
 
@@ -52,6 +53,26 @@ func (h *Handlers) ListActionsForPolicy(w http.ResponseWriter, r *http.Request) 
 
 type setPolicyStatusBody struct {
 	Status string `json:"status"`
+}
+
+// FindPolicy finds a policy by its role and status
+func (h *Handlers) FindPolicy(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	role := r.URL.Query().Get("role")
+	status := r.URL.Query().Get("status")
+
+	if role == "" || status == "" {
+		http.Error(w, "role and status must be provided as query parameters", http.StatusBadRequest)
+		return
+	}
+
+	policy := h.PolicyStorage.FindByRole(storage.FindByRoleQuery{Role: role, Status: status})
+
+	if policy == nil {
+		http.Error(w, "policy not found", http.StatusNotFound)
+	} else {
+		io.RespondJSON(ctx, h.Log, w, policy, http.StatusOK)
+	}
 }
 
 func (h *Handlers) SetPolicyStatus(w http.ResponseWriter, r *http.Request) {

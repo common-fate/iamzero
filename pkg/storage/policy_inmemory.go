@@ -50,13 +50,28 @@ type FindPolicyQuery struct {
 func (s *PolicyStorage) FindByRoleAndToken(q FindPolicyQuery) *recommendations.Policy {
 	for _, policy := range s.policies {
 		var policyMatchesToken bool
-		if q.Token != nil {
+		if q.Token != nil && policy.Token != nil {
 			policyMatchesToken = policy.Token.ID == q.Token.ID
 		} else {
 			policyMatchesToken = policy.Token == nil
 		}
 
 		if policy.Identity.Role == q.Role && policyMatchesToken && policy.Status == q.Status {
+			return &policy
+		}
+	}
+	return nil
+}
+
+type FindByRoleQuery struct {
+	Role   string
+	Status string
+}
+
+// FindByRole finds a matching policy by its role
+func (s *PolicyStorage) FindByRole(q FindByRoleQuery) *recommendations.Policy {
+	for _, policy := range s.policies {
+		if policy.Identity.Role == q.Role && policy.Status == q.Status {
 			return &policy
 		}
 	}

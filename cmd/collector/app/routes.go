@@ -101,6 +101,16 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 	advisor := args.Advisor
 	token := args.Token
 
+	// if the event was captured from an assumed role, replace it with the IAM role ARN
+	// TODO: we should store both the session ARN and the role ARN in this case
+	iamRole, err := recommendations.ExtractRoleARNFromSession(e.Identity.Role)
+	if err != nil {
+		return nil, err
+	}
+	if iamRole != nil {
+		e.Identity.Role = *iamRole
+	}
+
 	// censor info if in demo mode
 	if c.demo {
 		e.Identity.User = "iamzero-test-user"
