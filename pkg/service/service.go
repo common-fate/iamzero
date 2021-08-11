@@ -1,6 +1,7 @@
 package service
 
 import (
+	"flag"
 	"os"
 	"os/signal"
 	"strconv"
@@ -26,22 +27,38 @@ type Service struct {
 
 	signalsChannel  chan os.Signal
 	hcStatusChannel chan healthcheck.Status
+
+	logLevel string
+	// the port to expose the healthcheck and metrics on. Default is 10866
+	adminPort int
 }
 
-func NewService(adminPort int) *Service {
+func NewService() *Service {
 	signalsChannel := make(chan os.Signal, 1)
 	hcStatusChannel := make(chan healthcheck.Status)
 	signal.Notify(signalsChannel, os.Interrupt, syscall.SIGTERM)
 
 	return &Service{
-		Admin:           NewAdminServer(portToHostPort(adminPort)),
 		signalsChannel:  signalsChannel,
 		hcStatusChannel: hcStatusChannel,
 	}
 }
 
+func (s *Service) AddFlags(fs *flag.FlagSet) {
+	fs.IntVar(&s.adminPort, "admin-port", 10866, "the port to expose healthcheck and metrics on")
+	fs.StringVar(&s.logLevel, "log-level", "info", "the log level (must match go.uber.org/zap log levels)")
+}
+
 func (s *Service) Start() error {
-	logProd, err := zap.NewProduction()
+	s.Admin = NewAdminServer(portToHostPort(s.adminPort))
+
+	cfg := zap.NewProductionConfig()
+	err := cfg.Level.UnmarshalText([]byte(s.logLevel))
+	if err != nil {
+		return err
+	}
+	logProd, err := cfg.Build()
+
 	if err != nil {
 		return err
 	}

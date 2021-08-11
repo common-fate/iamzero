@@ -32,6 +32,8 @@ type LocalCommand struct {
 
 	Collector *collectorApp.Collector
 	Console   *consoleApp.Console
+
+	logLevel string
 }
 
 // LocalCommand creates a new ffcli.Command
@@ -49,6 +51,8 @@ func NewLocalCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 	// register CLI flags for other components
 	c.Collector.AddFlags(fs)
 	c.Console.AddFlags(fs)
+
+	fs.StringVar(&c.logLevel, "log-level", "info", "the log level (must match go.uber.org/zap log levels)")
 
 	// fs.IntVar(&cfg.port, "p", 9090, "the local port to run the iamzero server on")
 	// fs.BoolVar(&cfg.demo, "demo", false, "run in demo mode (censors AWS account information)")
@@ -69,7 +73,12 @@ func (c *LocalCommand) log(a ...interface{}) {
 
 // Exec function for this command.
 func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
-	logProd, err := zap.NewProduction()
+	cfg := zap.NewProductionConfig()
+	err := cfg.Level.UnmarshalText([]byte(c.logLevel))
+	if err != nil {
+		return err
+	}
+	logProd, err := cfg.Build()
 	if err != nil {
 		return errors.Wrap(err, "can't initialize zap logger")
 	}
@@ -166,7 +175,7 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 	actionStorage := storage.NewAlertStorage()
 	policyStorage := storage.NewPolicyStorage()
 
-	if err := c.Collector.Start(&collectorApp.CollectorOptions{
+	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
 		Logger:        log,
 		Tracer:        tracer,
 		TokenStore:    tokenStore,

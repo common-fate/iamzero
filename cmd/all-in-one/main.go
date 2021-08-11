@@ -22,6 +22,7 @@ type AllInOneCommand struct {
 	TokenStoreFactory *tokens.TokensStoreFactory
 	Collector         *collectorApp.Collector
 	Console           *consoleApp.Console
+	Svc               *service.Service
 }
 
 func main() {
@@ -40,6 +41,7 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.TokenStoreFactory = tokens.NewFactory()
 	c.Collector = collectorApp.New()
 	c.Console = consoleApp.New()
+	c.Svc = service.NewService()
 
 	fs := flag.NewFlagSet("iamzero-collector", flag.ExitOnError)
 
@@ -48,6 +50,7 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.TokenStoreFactory.AddFlags(fs)
 	c.Collector.AddFlags(fs)
 	c.Console.AddFlags(fs)
+	c.Svc.AddFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "iamzero-collector",
@@ -61,12 +64,11 @@ func NewAllInOneCommand() *ffcli.Command {
 }
 
 func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
-	svc := service.NewService(10866)
-	if err := svc.Start(); err != nil {
+	if err := c.Svc.Start(); err != nil {
 		return err
 	}
 
-	log := svc.Logger
+	log := c.Svc.Logger
 	tracer, err := c.TracingFactory.InitializeTracer(ctx)
 	if err != nil {
 		return err
@@ -80,7 +82,7 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 	actionStorage := storage.NewAlertStorage()
 	policyStorage := storage.NewPolicyStorage()
 
-	if err := c.Collector.Start(&collectorApp.CollectorOptions{
+	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
 		Logger:        log,
 		Tracer:        tracer,
 		TokenStore:    store,
@@ -100,7 +102,7 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 		return err
 	}
 
-	svc.RunAndThen(func() {
+	c.Svc.RunAndThen(func() {
 		if err := c.Collector.Close(); err != nil {
 			log.Fatal("failed to close collector", zap.Error(err))
 		}

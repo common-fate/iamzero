@@ -19,6 +19,7 @@ type CollectorCommand struct {
 	TracingFactory    *tracing.TracingFactory
 	TokenStoreFactory *tokens.TokensStoreFactory
 	Collector         *app.Collector
+	Svc               *service.Service
 }
 
 func main() {
@@ -36,6 +37,7 @@ func NewCollectorCommand() *ffcli.Command {
 	c.TracingFactory = tracing.NewFactory()
 	c.TokenStoreFactory = tokens.NewFactory()
 	c.Collector = app.New()
+	c.Svc = service.NewService()
 
 	fs := flag.NewFlagSet("iamzero-collector", flag.ExitOnError)
 
@@ -43,6 +45,7 @@ func NewCollectorCommand() *ffcli.Command {
 	c.TracingFactory.AddFlags(fs)
 	c.TokenStoreFactory.AddFlags(fs)
 	c.Collector.AddFlags(fs)
+	c.Svc.AddFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "iamzero-collector",
@@ -54,12 +57,11 @@ func NewCollectorCommand() *ffcli.Command {
 }
 
 func (c *CollectorCommand) Exec(ctx context.Context, _ []string) error {
-	svc := service.NewService(10866)
-	if err := svc.Start(); err != nil {
+	if err := c.Svc.Start(); err != nil {
 		return err
 	}
 
-	log := svc.Logger
+	log := c.Svc.Logger
 	tracer, err := c.TracingFactory.InitializeTracer(ctx)
 	if err != nil {
 		return err
@@ -75,7 +77,7 @@ func (c *CollectorCommand) Exec(ctx context.Context, _ []string) error {
 
 	co := c.Collector
 
-	if err := co.Start(&app.CollectorOptions{
+	if err := co.Start(ctx, &app.CollectorOptions{
 		Logger:        log,
 		Tracer:        tracer,
 		TokenStore:    store,
@@ -85,7 +87,7 @@ func (c *CollectorCommand) Exec(ctx context.Context, _ []string) error {
 		return err
 	}
 
-	svc.RunAndThen(func() {
+	c.Svc.RunAndThen(func() {
 		if err := co.Close(); err != nil {
 			log.Fatal("failed to close collector", zap.Error(err))
 		}
