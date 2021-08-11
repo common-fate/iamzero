@@ -16,6 +16,7 @@ type AWSEvent struct {
 }
 
 type AWSData struct {
+	Type             string                 `json:"type"`
 	Service          string                 `json:"service"`
 	Region           string                 `json:"region"`
 	Operation        string                 `json:"operation"`
