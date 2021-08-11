@@ -1,9 +1,5 @@
 package recommendations
 
-import (
-	"go.uber.org/zap"
-)
-
 const (
 	AlertActive   = "active"
 	AlertIgnored  = "ignored"
@@ -53,7 +49,7 @@ type AWSIAMPrincipal struct {
 }
 
 // AdviceFactory generates Advice based on a provided event
-type AdviceFactory = func(e AWSEvent) (Advice, error)
+type AdviceFactory = func(e AWSEvent) (*JSONAdvice, error)
 
 type Advisor struct {
 	AlertsMapping map[string][]AdviceFactory
@@ -70,10 +66,4 @@ type RecommendationDetails struct {
 	Comment     string
 	Resources   []Resource
 	Description []Description
-}
-
-type Advice interface {
-	Apply(log *zap.SugaredLogger) error
-	GetID() string
-	Details() RecommendationDetails
 }

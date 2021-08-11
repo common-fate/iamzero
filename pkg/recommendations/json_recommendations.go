@@ -2,19 +2,13 @@ package recommendations
 
 import (
 	"bytes"
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"strings"
 	"text/template/parse"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/iam"
-	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type JSONPolicyParams struct {
@@ -37,7 +31,7 @@ type JSONAdvice struct {
 }
 
 func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
-	return func(e AWSEvent) (Advice, error) {
+	return func(e AWSEvent) (*JSONAdvice, error) {
 
 		var iamStatements []AWSIAMStatement
 		resources := []Resource{}
@@ -112,53 +106,6 @@ func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
 		}
 		return &advice, nil
 	}
-}
-
-// Apply the recommendation by provisioning and attaching an IAM policy to the role
-// Note: we currently don't expose this functionality through the IAM Zero console and could consider
-// removing it for now until we further explore use cases around IAM role deployment.
-func (a *JSONAdvice) Apply(log *zap.SugaredLogger) error {
-	ctx := context.TODO()
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	policyBytes, err := json.Marshal(a.AWSPolicy)
-	if err != nil {
-		return err
-	}
-	policyStr := string(policyBytes)
-	name := fmt.Sprintf("iamzero-%s", a.ID)
-
-	tagKey := "iamzero.dev/managed"
-	tagVal := "true"
-
-	svc := iam.NewFromConfig(cfg)
-
-	params := iam.CreatePolicyInput{
-		PolicyDocument: &policyStr,
-		PolicyName:     &name,
-		Tags: []types.Tag{
-			{Key: &tagKey, Value: &tagVal},
-		},
-	}
-	log.With("policy", params).Info("creating policy")
-
-	createPolicyOutput, err := svc.CreatePolicy(ctx, &params)
-	if err != nil {
-		return err
-	}
-
-	arn := createPolicyOutput.Policy.Arn
-
-	attachPolicyInput := iam.AttachRolePolicyInput{
-		PolicyArn: arn,
-		RoleName:  &a.RoleName,
-	}
-
-	_, err = svc.AttachRolePolicy(ctx, &attachPolicyInput)
-	return err
 }
 
 func (a *JSONAdvice) GetID() string {

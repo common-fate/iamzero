@@ -4,7 +4,6 @@ func NewAdvisor() *Advisor {
 	return &Advisor{
 		AlertsMapping: map[string][]AdviceFactory{
 			"dynamodb:GetItem": {
-				dynamoDBkmsRecommendation,
 				GetJSONAdvice(JSONPolicyParams{
 					Policy: []Statement{
 						{
@@ -64,7 +63,7 @@ func NewAdvisor() *Advisor {
 							},
 						},
 					},
-					Comment: "Allow CRUD operations on the table",
+					Comment: "Allow read and write operations on the table",
 					DocLink: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/iam-policy-example-data-crud.html",
 				}),
 			},
@@ -72,16 +71,9 @@ func NewAdvisor() *Advisor {
 				GetJSONAdvice(JSONPolicyParams{
 					Policy: []Statement{{
 						Action:   []string{"s3:PutObject"},
-						Resource: []string{"arn:aws:s3:::{{ .Bucket }}/{{ .Key }}"},
-					}},
-					Comment: "Allow PutObject access to the specific key",
-				}),
-				GetJSONAdvice(JSONPolicyParams{
-					Policy: []Statement{{
-						Action:   []string{"s3:PutObject"},
 						Resource: []string{"arn:aws:s3:::{{ .Bucket }}"},
 					}},
-					Comment: "Allow PutObject access to the whole bucket",
+					Comment: "Allow PutObject access to the bucket",
 				}),
 			},
 			"s3:CreateBucket": {
@@ -120,16 +112,9 @@ func NewAdvisor() *Advisor {
 				GetJSONAdvice(JSONPolicyParams{
 					Policy: []Statement{{
 						Action:   []string{"s3:GetObject"},
-						Resource: []string{"arn:aws:s3:::{{ .Bucket }}/{{ .Key }}"},
-					}},
-					Comment: "Allow access to the specific key in the bucket",
-				}),
-				GetJSONAdvice(JSONPolicyParams{
-					Policy: []Statement{{
-						Action:   []string{"s3:GetObject"},
 						Resource: []string{"arn:aws:s3:::{{ .Bucket }}/*"},
 					}},
-					Comment: "Allow access to the whole bucket",
+					Comment: "Allow access to the bucket",
 				}),
 			},
 			"s3:ListBuckets": {
@@ -145,11 +130,12 @@ func NewAdvisor() *Advisor {
 	}
 }
 
-func (a *Advisor) Advise(e AWSEvent) ([]Advice, error) {
+// Advise
+func (a *Advisor) Advise(e AWSEvent) ([]*JSONAdvice, error) {
 	key := e.Data.Service + ":" + e.Data.Operation
 
 	adviceBuilders := a.AlertsMapping[key]
-	var advices []Advice
+	var advices []*JSONAdvice
 
 	for _, builder := range adviceBuilders {
 		advice, err := builder(e)

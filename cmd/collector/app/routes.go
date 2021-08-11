@@ -155,7 +155,7 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 		Time:               time.Now(),
 		HasRecommendations: false,
 		Resources:          []recommendations.Resource{},
-		Recommendations:    []recommendations.Advice{},
+		Recommendations:    []*recommendations.JSONAdvice{},
 		Enabled:            true,
 		SelectedAdvisoryID: "",
 	}
