@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/common-fate/iamzero/pkg/audit"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"go.opentelemetry.io/otel/trace"
@@ -19,6 +20,7 @@ type Collector struct {
 	demo          bool
 	actionStorage *storage.ActionStorage
 	policyStorage *storage.PolicyStorage
+	auditor       *audit.Auditor
 
 	Host                  string
 	Demo                  bool
@@ -38,6 +40,7 @@ func New() *Collector {
 type CollectorOptions struct {
 	Logger        *zap.SugaredLogger
 	Tracer        trace.Tracer
+	Auditor       *audit.Auditor
 	TokenStore    tokens.TokenStorer
 	ActionStorage *storage.ActionStorage
 	PolicyStorage *storage.PolicyStorage
@@ -51,12 +54,28 @@ func (c *Collector) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.TransportSQSQueueURL, "transport-sqs-queue-url", "", "(if SQS transport enabled) the SQS queue URL")
 }
 
-func (c *Collector) Start(opts *CollectorOptions) error {
+func (c *Collector) Start(ctx context.Context, opts *CollectorOptions) error {
 	c.log = opts.Logger
 	c.tracer = opts.Tracer
+	c.auditor = opts.Auditor
 	c.tokenStore = opts.TokenStore
 	c.actionStorage = opts.ActionStorage
 	c.policyStorage = opts.PolicyStorage
+
+	c.auditor.Setup(c.log)
+
+	// err := c.auditor.LoadResources(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+
+	c.auditor.LoadFixture()
+
+	c.log.With("roles", c.auditor.GetRoles()).Info("auditor: found roles")
+
+	c.auditor.BuildLinks()
+
+	c.log.With("links", c.auditor.GetLinks()).Info("auditor: found links")
 
 	c.log.With("collector-host", c.Host).Info("starting IAM Zero collector server")
 

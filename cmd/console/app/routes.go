@@ -18,6 +18,7 @@ func (c *Console) GetConsoleRoutes() *chi.Mux {
 		TokenStore:    c.tokenStore,
 		ActionStorage: c.actionStorage,
 		PolicyStorage: c.policyStorage,
+		Auditor:       c.auditor,
 	}
 
 	router.Route("/api/v1", func(r chi.Router) {

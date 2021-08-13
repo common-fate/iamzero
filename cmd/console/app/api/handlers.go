@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/common-fate/iamzero/pkg/audit"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"go.uber.org/zap"
@@ -12,4 +13,5 @@ type Handlers struct {
 	TokenStore    tokens.TokenStorer
 	ActionStorage *storage.ActionStorage
 	PolicyStorage *storage.PolicyStorage
+	Auditor       *audit.Auditor
 }

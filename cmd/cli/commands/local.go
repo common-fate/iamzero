@@ -16,6 +16,7 @@ import (
 	collectorApp "github.com/common-fate/iamzero/cmd/collector/app"
 	consoleApp "github.com/common-fate/iamzero/cmd/console/app"
 
+	"github.com/common-fate/iamzero/pkg/audit"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -32,6 +33,7 @@ type LocalCommand struct {
 
 	Collector *collectorApp.Collector
 	Console   *consoleApp.Console
+	Auditor   *audit.Auditor
 
 	logLevel string
 }
@@ -45,12 +47,14 @@ func NewLocalCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 
 	c.Collector = collectorApp.New()
 	c.Console = consoleApp.New()
+	c.Auditor = audit.New()
 
 	fs := flag.NewFlagSet("iamzero local", flag.ExitOnError)
 
 	// register CLI flags for other components
 	c.Collector.AddFlags(fs)
 	c.Console.AddFlags(fs)
+	c.Auditor.AddFlags(fs)
 
 	fs.StringVar(&c.logLevel, "log-level", "info", "the log level (must match go.uber.org/zap log levels)")
 
@@ -175,12 +179,15 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 	actionStorage := storage.NewAlertStorage()
 	policyStorage := storage.NewPolicyStorage()
 
+	c.Auditor.Setup(log)
+
 	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
 		Logger:        log,
 		Tracer:        tracer,
 		TokenStore:    tokenStore,
 		ActionStorage: actionStorage,
 		PolicyStorage: policyStorage,
+		Auditor:       c.Auditor,
 	}); err != nil {
 		return err
 	}
@@ -191,6 +198,7 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 		TokenStore:    tokenStore,
 		ActionStorage: actionStorage,
 		PolicyStorage: policyStorage,
+		Auditor:       c.Auditor,
 	}); err != nil {
 		return err
 	}
