@@ -79,8 +79,8 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 	}
 
 	// TODO: shift these to be configurable factories, similar to TokenStoreFactory
-	actionStorage := storage.NewAlertStorage()
-	policyStorage := storage.NewPolicyStorage()
+	actionStorage := storage.NewInMemoryActionStorage()
+	policyStorage := storage.NewInMemoryPolicyStorage()
 
 	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
 		Logger:        log,

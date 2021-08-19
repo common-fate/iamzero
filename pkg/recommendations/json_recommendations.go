@@ -8,10 +8,11 @@ import (
 	"strings"
 	"text/template/parse"
 
+	"github.com/common-fate/iamzero/pkg/policies"
 	"github.com/google/uuid"
 )
 
-type JSONPolicyParams struct {
+type AdvisoryTemplate struct {
 	Policy  []Statement
 	Comment string
 	DocLink string
@@ -24,88 +25,94 @@ type Statement struct {
 
 type JSONAdvice struct {
 	ID        string
-	AWSPolicy AWSIAMPolicy
+	AWSPolicy policies.AWSIAMPolicy
 	Comment   string
 	RoleName  string
 	Resources []Resource
 }
 
-func GetJSONAdvice(r JSONPolicyParams) AdviceFactory {
-	return func(e AWSEvent) (*JSONAdvice, error) {
+// CreateAdviceFromEvent runs the received event through the AdvisoryTemplate to generate a least-privilege
+// advice
+func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONAdvice, error) {
+	var iamStatements []policies.AWSIAMStatement
+	resources := []Resource{}
 
-		var iamStatements []AWSIAMStatement
-		resources := []Resource{}
+	// extract variables from the API call to insert in our recommended policies
+	vars := e.Data.Parameters
 
-		// extract variables from the API call to insert in our recommended policies
-		vars := e.Data.Parameters
+	// include the region and account as variables available for templating
+	// TODO: need to test this and consider edge cases where Parameters could contain a separate Region variable!
+	vars["Region"] = e.Data.Region
+	vars["Account"] = e.Identity.Account
 
-		// include the region and account as variables available for templating
-		// TODO: need to test this and consider edge cases where Parameters could contain a separate Region variable!
-		vars["Region"] = e.Data.Region
-		vars["Account"] = e.Identity.Account
+	// generate AWS statements for each template statement we have
+	for _, statement := range r.Policy {
+		// the actual ARN of the resource after executing the template
+		// for example, `arn:aws:s3:::test-bucket/test-object`
+		renderedResources := []string{}
 
-		// generate AWS statements for each template statement we have
-		for _, statement := range r.Policy {
-			// the actual ARN of the resource after executing the template
-			// for example, `arn:aws:s3:::test-bucket/test-object`
-			renderedResources := []string{}
-
-			for _, resourceTemplate := range statement.Resource {
-				// template out each resource
-				tmpl, err := template.New("policy").Parse(resourceTemplate)
-				if err != nil {
-					return nil, err
-				}
-
-				friendlyResourceName, err := parseResourceFromTemplate(tmpl, vars)
-				if err != nil {
-					friendlyResourceName = "unknown"
-				}
-				resources = append(resources, Resource{
-					ID:   uuid.NewString(),
-					Name: friendlyResourceName,
-				})
-
-				var resBytes bytes.Buffer
-				err = tmpl.Execute(&resBytes, vars)
-				if err != nil {
-					return nil, err
-				}
-				renderedResources = append(renderedResources, resBytes.String())
+		for _, resourceTemplate := range statement.Resource {
+			// template out each resource
+			tmpl, err := template.New("policy").Parse(resourceTemplate)
+			if err != nil {
+				return nil, err
 			}
 
-			iamStatement := AWSIAMStatement{
-				Sid:      "iamzero" + strings.Replace(uuid.NewString(), "-", "", -1),
-				Effect:   "Allow",
-				Action:   statement.Action,
-				Resource: renderedResources,
+			friendlyResourceName, err := parseResourceFromTemplate(tmpl, vars)
+			if err != nil {
+				friendlyResourceName = "unknown"
 			}
-			iamStatements = append(iamStatements, iamStatement)
+
+			// determine whether we have an infrastructure-as-code definition for the resource
+			// TODO: confirm whether this lookup needs to be modified for more complex resources
+			// e.g. DynamoDB tables or KMS keys.
+			cdkResource := a.auditor.GetCDKResourceByPhysicalID(friendlyResourceName)
+
+			resources = append(resources, Resource{
+				ID:          uuid.NewString(),
+				Name:        friendlyResourceName,
+				CDKResource: cdkResource,
+			})
+
+			var resBytes bytes.Buffer
+			err = tmpl.Execute(&resBytes, vars)
+			if err != nil {
+				return nil, err
+			}
+			renderedResources = append(renderedResources, resBytes.String())
 		}
 
-		id := uuid.NewString()
-
-		// build a recommended AWS policy
-		policy := AWSIAMPolicy{
-			Version:   "2012-10-17",
-			Id:        &id,
-			Statement: iamStatements,
+		iamStatement := policies.AWSIAMStatement{
+			Sid:      "iamzero" + strings.Replace(uuid.NewString(), "-", "", -1),
+			Effect:   "Allow",
+			Action:   statement.Action,
+			Resource: renderedResources,
 		}
-
-		roleName, err := GetRoleOrUserNameFromARN(e.Identity.Role)
-		if err != nil {
-			return nil, err
-		}
-
-		advice := JSONAdvice{
-			AWSPolicy: policy,
-			Comment:   r.Comment,
-			ID:        id,
-			RoleName:  roleName,
-			Resources: resources,
-		}
-		return &advice, nil
+		iamStatements = append(iamStatements, iamStatement)
 	}
+
+	id := uuid.NewString()
+
+	// build a recommended AWS policy
+	policy := policies.AWSIAMPolicy{
+		Version:   "2012-10-17",
+		Id:        &id,
+		Statement: iamStatements,
+	}
+
+	roleName, err := GetRoleOrUserNameFromARN(e.Identity.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	advice := JSONAdvice{
+		AWSPolicy: policy,
+		Comment:   r.Comment,
+		ID:        id,
+		RoleName:  roleName,
+		Resources: resources,
+	}
+	return &advice, nil
 }
 
 func (a *JSONAdvice) GetID() string {

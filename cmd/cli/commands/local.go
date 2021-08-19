@@ -176,8 +176,13 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	actionStorage := storage.NewAlertStorage()
-	policyStorage := storage.NewPolicyStorage()
+	db, err := storage.OpenBoltDB()
+	if err != nil {
+		return err
+	}
+
+	actionStorage := storage.NewBoltActionStorage(db)
+	policyStorage := storage.NewBoltPolicyStorage(db)
 
 	c.Auditor.Setup(log)
 

@@ -3,7 +3,7 @@ package audit
 import (
 	"testing"
 
-	"github.com/common-fate/iamzero/pkg/recommendations"
+	"github.com/common-fate/iamzero/pkg/policies"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,9 +12,9 @@ func TestCanAssume_BasicCase(t *testing.T) {
 		ManagedPolicies: []ManagedPolicy{
 			{
 				ARN: "arn:aws:iam::111222333444:role/target",
-				Document: recommendations.AWSIAMPolicy{
+				Document: policies.AWSIAMPolicy{
 					Version: "2012-10-17",
-					Statement: []recommendations.AWSIAMStatement{
+					Statement: []policies.AWSIAMStatement{
 						{
 							Sid:      "1",
 							Effect:   "Allow",
@@ -36,11 +36,11 @@ func TestCanAssume_BasicCase(t *testing.T) {
 		ARN:             "arn:aws:iam::111222333444:role/target",
 		AccountID:       "111222333444",
 		TrustPolicyDocument: TrustPolicyDocument{
-			Statement: []recommendations.AWSIAMStatement{
+			Statement: []policies.AWSIAMStatement{
 				{
 					Effect: "Allow",
 					Action: []string{"sts:AssumeRole"},
-					Principal: &recommendations.AWSIAMPrincipal{
+					Principal: &policies.AWSIAMPrincipal{
 						AWS: "arn:aws:iam::123456789012:role/source",
 					},
 				},
@@ -57,9 +57,9 @@ func TestCannotAssumeIfTrustPolicyNotConfigured(t *testing.T) {
 		ManagedPolicies: []ManagedPolicy{
 			{
 				ARN: "arn:aws:iam::111222333444:policy/source-policy",
-				Document: recommendations.AWSIAMPolicy{
+				Document: policies.AWSIAMPolicy{
 					Version: "2012-10-17",
-					Statement: []recommendations.AWSIAMStatement{
+					Statement: []policies.AWSIAMStatement{
 						{
 							Sid:      "1",
 							Effect:   "Allow",

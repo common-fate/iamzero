@@ -1,4 +1,4 @@
-package recommendations
+package policies
 
 import (
 	"encoding/json"

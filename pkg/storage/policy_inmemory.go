@@ -7,36 +7,36 @@ import (
 	"github.com/common-fate/iamzero/pkg/tokens"
 )
 
-type PolicyStorage struct {
+type InMemoryPolicyStorage struct {
 	sync.RWMutex
 	policies []recommendations.Policy
 }
 
-func NewPolicyStorage() *PolicyStorage {
-	return &PolicyStorage{policies: []recommendations.Policy{}}
+func NewInMemoryPolicyStorage() *InMemoryPolicyStorage {
+	return &InMemoryPolicyStorage{policies: []recommendations.Policy{}}
 }
 
-func (s *PolicyStorage) List() []recommendations.Policy {
-	return s.policies
+func (s *InMemoryPolicyStorage) List() ([]recommendations.Policy, error) {
+	return s.policies, nil
 }
 
-func (s *PolicyStorage) ListForStatus(status string) []recommendations.Policy {
+func (s *InMemoryPolicyStorage) ListForStatus(status string) ([]recommendations.Policy, error) {
 	policies := []recommendations.Policy{}
 	for _, p := range s.policies {
 		if p.Status == status {
 			policies = append(policies, p)
 		}
 	}
-	return policies
+	return policies, nil
 }
 
-func (s *PolicyStorage) Get(id string) *recommendations.Policy {
+func (s *InMemoryPolicyStorage) Get(id string) (*recommendations.Policy, error) {
 	for _, policy := range s.policies {
 		if policy.ID == id {
-			return &policy
+			return &policy, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 type FindPolicyQuery struct {
@@ -45,40 +45,22 @@ type FindPolicyQuery struct {
 	Status string
 }
 
-// FindByRoleAndToken finds a matching policy by its role and token
-// If the provided token is nil, matches policies that don't have any tokens associated with them.
-func (s *PolicyStorage) FindByRoleAndToken(q FindPolicyQuery) *recommendations.Policy {
-	for _, policy := range s.policies {
-		var policyMatchesToken bool
-		if q.Token != nil && policy.Token != nil {
-			policyMatchesToken = policy.Token.ID == q.Token.ID
-		} else {
-			policyMatchesToken = policy.Token == nil
-		}
-
-		if policy.Identity.Role == q.Role && policyMatchesToken && policy.Status == q.Status {
-			return &policy
-		}
-	}
-	return nil
-}
-
 type FindByRoleQuery struct {
 	Role   string
 	Status string
 }
 
 // FindByRole finds a matching policy by its role
-func (s *PolicyStorage) FindByRole(q FindByRoleQuery) *recommendations.Policy {
+func (s *InMemoryPolicyStorage) FindByRole(q FindByRoleQuery) (*recommendations.Policy, error) {
 	for _, policy := range s.policies {
 		if policy.Identity.Role == q.Role && policy.Status == q.Status {
-			return &policy
+			return &policy, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
-func (s *PolicyStorage) CreateOrUpdate(policy recommendations.Policy) error {
+func (s *InMemoryPolicyStorage) CreateOrUpdate(policy recommendations.Policy) error {
 	s.Lock()
 	defer s.Unlock()
 	for i, p := range s.policies {

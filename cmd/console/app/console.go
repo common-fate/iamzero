@@ -17,8 +17,8 @@ type Console struct {
 	log           *zap.SugaredLogger
 	tracer        trace.Tracer
 	tokenStore    tokens.TokenStorer
-	actionStorage *storage.ActionStorage
-	policyStorage *storage.PolicyStorage
+	actionStorage storage.ActionStorage
+	policyStorage storage.PolicyStorage
 	auditor       *audit.Auditor
 
 	Host string
@@ -35,8 +35,8 @@ type ConsoleOptions struct {
 	Logger        *zap.SugaredLogger
 	Tracer        trace.Tracer
 	TokenStore    tokens.TokenStorer
-	ActionStorage *storage.ActionStorage
-	PolicyStorage *storage.PolicyStorage
+	ActionStorage storage.ActionStorage
+	PolicyStorage storage.PolicyStorage
 	Auditor       *audit.Auditor
 }
 

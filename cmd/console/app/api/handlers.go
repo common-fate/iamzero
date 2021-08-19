@@ -11,7 +11,7 @@ import (
 type Handlers struct {
 	Log           *zap.SugaredLogger
 	TokenStore    tokens.TokenStorer
-	ActionStorage *storage.ActionStorage
-	PolicyStorage *storage.PolicyStorage
+	ActionStorage storage.ActionStorage
+	PolicyStorage storage.PolicyStorage
 	Auditor       *audit.Auditor
 }

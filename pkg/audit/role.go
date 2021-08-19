@@ -1,7 +1,7 @@
 package audit
 
 import (
-	"github.com/common-fate/iamzero/pkg/recommendations"
+	"github.com/common-fate/iamzero/pkg/policies"
 )
 
 // AWSRole is a role
@@ -23,7 +23,7 @@ type AWSRole struct {
 // trusts with user-managed roles.
 type TrustPolicyDocument struct {
 	Version   string
-	Statement []recommendations.AWSIAMStatement
+	Statement []policies.AWSIAMStatement
 }
 
 // CanAssume tests whether a role can assume another
@@ -51,7 +51,7 @@ func (a *AWSRole) CanAssume(target AWSRole) bool {
 // assume the target role
 // NOTE: doesn't check if there are conflicting DENY statements
 func (a *AWSRole) hasPolicyToAssumeTarget(target AWSRole) bool {
-	statements := []recommendations.AWSIAMStatement{}
+	statements := []policies.AWSIAMStatement{}
 
 	for _, p := range a.ManagedPolicies {
 		statements = append(statements, p.Document.Statement...)
@@ -82,7 +82,7 @@ func (a *AWSRole) HasTrustRelationshipAllowingSourceAssumption(source AWSRole) b
 }
 
 // NOTE: doesn't handle wildcards
-func trustPolicyStatementAllowsSourceRoleAssumption(s recommendations.AWSIAMStatement, source AWSRole) bool {
+func trustPolicyStatementAllowsSourceRoleAssumption(s policies.AWSIAMStatement, source AWSRole) bool {
 	includesAssumeRole := false
 	for _, a := range s.Action {
 		if a == "sts:AssumeRole" {
@@ -98,7 +98,7 @@ func trustPolicyStatementAllowsSourceRoleAssumption(s recommendations.AWSIAMStat
 }
 
 // NOTE: doesn't handle wildcards (in either the resource nor the action)
-func statementAllowsTargetRoleAssumption(s recommendations.AWSIAMStatement, target AWSRole) bool {
+func statementAllowsTargetRoleAssumption(s policies.AWSIAMStatement, target AWSRole) bool {
 	// whether sts:AssumeRole is included as an allowed action
 	includesAssumeRole := false
 	for _, a := range s.Action {

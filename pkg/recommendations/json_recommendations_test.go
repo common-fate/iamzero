@@ -3,16 +3,37 @@ package recommendations
 import (
 	"html/template"
 	"testing"
+
+	"github.com/common-fate/iamzero/pkg/audit"
 )
 
-func buildExampleAdvisor() AdviceFactory {
-	return GetJSONAdvice(JSONPolicyParams{
-		Policy: []Statement{{
+func buildExampleAdvisor() *Advisor {
+	return &Advisor{
+		AlertsMapping: map[string][]AdvisoryTemplate{
+			"s3:PutObject": {
+				AdvisoryTemplate{
+					Policy: []Statement{
+						{
+							Action:   []string{"s3:PutObject"},
+							Resource: []string{"arn:aws:s3:::{{ .Bucket }}/{{ .Key }}"},
+						},
+					},
+					Comment: "Allow PutObject access to the specific key",
+				},
+			},
+		},
+		auditor: audit.New(),
+	}
+}
+
+var exampleAdvisoryTemplate = AdvisoryTemplate{
+	Policy: []Statement{
+		{
 			Action:   []string{"s3:PutObject"},
 			Resource: []string{"arn:aws:s3:::{{ .Bucket }}/{{ .Key }}"},
-		}},
-		Comment: "Allow PutObject access to the specific key",
-	})
+		},
+	},
+	Comment: "Allow PutObject access to the specific key",
 }
 
 func buildSampleEvent() AWSEvent {
@@ -39,7 +60,7 @@ func TestJSONRecommendationsWorks(t *testing.T) {
 	advisor := buildExampleAdvisor()
 	e := buildSampleEvent()
 
-	_, err := advisor(e)
+	_, err := advisor.CreateAdviceFromEvent(&e, exampleAdvisoryTemplate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +72,7 @@ func TestJSONRecommendationsSetsResources(t *testing.T) {
 	advisor := buildExampleAdvisor()
 	e := buildSampleEvent()
 
-	a, _ := advisor(e)
+	a, _ := advisor.CreateAdviceFromEvent(&e, exampleAdvisoryTemplate)
 	resources := a.Details().Resources
 	if len(resources) != 1 {
 		t.Fatal("expected 1 resource to be found")

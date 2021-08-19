@@ -1,10 +1,13 @@
 package recommendations
 
-func NewAdvisor() *Advisor {
+import "github.com/common-fate/iamzero/pkg/audit"
+
+func NewAdvisor(auditor *audit.Auditor) *Advisor {
 	return &Advisor{
-		AlertsMapping: map[string][]AdviceFactory{
+		auditor: auditor,
+		AlertsMapping: map[string][]AdvisoryTemplate{
 			"dynamodb:GetItem": {
-				GetJSONAdvice(JSONPolicyParams{
+				AdvisoryTemplate{
 					Policy: []Statement{
 						{
 							Action: []string{
@@ -19,8 +22,8 @@ func NewAdvisor() *Advisor {
 					},
 					Comment: "Allow all read-only actions on the table",
 					DocLink: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/read-only-permissions-on-table-items.html",
-				}),
-				GetJSONAdvice(JSONPolicyParams{
+				},
+				AdvisoryTemplate{
 					Policy: []Statement{
 						{
 							Action: []string{
@@ -65,66 +68,66 @@ func NewAdvisor() *Advisor {
 					},
 					Comment: "Allow read and write operations on the table",
 					DocLink: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/iam-policy-example-data-crud.html",
-				}),
+				},
 			},
 			"s3:PutObject": {
-				GetJSONAdvice(JSONPolicyParams{
+				AdvisoryTemplate{
 					Policy: []Statement{{
 						Action:   []string{"s3:PutObject"},
 						Resource: []string{"arn:aws:s3:::{{ .Bucket }}"},
 					}},
 					Comment: "Allow PutObject access to the bucket",
-				}),
+				},
 			},
 			"s3:CreateBucket": {
-				GetJSONAdvice(JSONPolicyParams{
+				AdvisoryTemplate{
 					Policy: []Statement{{
 						Action:   []string{"s3:CreateBucket"},
 						Resource: []string{"arn:aws:s3:::{{ .Bucket }}"},
 					}},
 					Comment: "Allow creating the specific bucket",
-				}),
-				GetJSONAdvice(JSONPolicyParams{
+				},
+				AdvisoryTemplate{
 					Policy: []Statement{{
 						Action:   []string{"s3:CreateBucket"},
 						Resource: []string{"arn:aws:s3:::*"},
 					}},
 					Comment: "Allow creating all buckets",
-				}),
+				},
 			},
 			"s3:DeleteBucket": {
-				GetJSONAdvice(JSONPolicyParams{
+				AdvisoryTemplate{
 					Policy: []Statement{{
 						Action:   []string{"s3:DeleteBucket"},
 						Resource: []string{"arn:aws:s3:::{{ .Bucket }}"},
 					}},
 					Comment: "Allow deleting the specific bucket",
-				}),
-				GetJSONAdvice(JSONPolicyParams{
+				},
+				AdvisoryTemplate{
 					Policy: []Statement{{
 						Action:   []string{"s3:DeleteBucket"},
 						Resource: []string{"arn:aws:s3:::*"},
 					}},
 					Comment: "Allow deleting all buckets",
-				}),
+				},
 			},
 			"s3:HeadObject": {
-				GetJSONAdvice(JSONPolicyParams{
+				AdvisoryTemplate{
 					Policy: []Statement{{
 						Action:   []string{"s3:GetObject"},
 						Resource: []string{"arn:aws:s3:::{{ .Bucket }}/*"},
 					}},
 					Comment: "Allow access to the bucket",
-				}),
+				},
 			},
 			"s3:ListBuckets": {
-				GetJSONAdvice(JSONPolicyParams{
+				AdvisoryTemplate{
 					Policy: []Statement{{
 						Action:   []string{"s3:ListBucket"},
 						Resource: []string{"arn:aws:s3:::*"},
 					}},
 					Comment: "Allows ListObject access to all buckets",
-				}),
+				},
 			},
 		},
 	}
@@ -134,11 +137,11 @@ func NewAdvisor() *Advisor {
 func (a *Advisor) Advise(e AWSEvent) ([]*JSONAdvice, error) {
 	key := e.Data.Service + ":" + e.Data.Operation
 
-	adviceBuilders := a.AlertsMapping[key]
+	advisoryTemplates := a.AlertsMapping[key]
 	var advices []*JSONAdvice
 
-	for _, builder := range adviceBuilders {
-		advice, err := builder(e)
+	for _, advisoryTemplate := range advisoryTemplates {
+		advice, err := a.CreateAdviceFromEvent(&e, advisoryTemplate)
 		if err != nil {
 			return nil, err
 		}

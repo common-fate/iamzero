@@ -18,14 +18,19 @@ func (h *Handlers) ListPolicies(w http.ResponseWriter, r *http.Request) {
 
 	var policies []recommendations.Policy
 
+	var err error
 	if status != "" {
 		if ok := recommendations.PolicyStatusIsValid(status); !ok {
 			http.Error(w, "policy status must be 'active' or 'resolved'", http.StatusBadRequest)
 			return
 		}
-		policies = h.PolicyStorage.ListForStatus(status)
+		policies, err = h.PolicyStorage.ListForStatus(status)
 	} else {
-		policies = h.PolicyStorage.List()
+		policies, err = h.PolicyStorage.List()
+	}
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
 	}
 
 	io.RespondJSON(ctx, h.Log, w, policies, http.StatusOK)
@@ -34,7 +39,11 @@ func (h *Handlers) ListPolicies(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetPolicy(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	policyID := chi.URLParam(r, "policyID")
-	policy := h.PolicyStorage.Get(policyID)
+	policy, err := h.PolicyStorage.Get(policyID)
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 
 	if policy == nil {
 		http.Error(w, "policy not found", http.StatusNotFound)
@@ -47,7 +56,11 @@ func (h *Handlers) GetPolicy(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ListActionsForPolicy(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	policyID := chi.URLParam(r, "policyID")
-	alerts := h.ActionStorage.ListForPolicy(policyID)
+	alerts, err := h.ActionStorage.ListForPolicy(policyID)
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 	io.RespondJSON(ctx, h.Log, w, alerts, http.StatusOK)
 }
 
@@ -66,7 +79,11 @@ func (h *Handlers) FindPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy := h.PolicyStorage.FindByRole(storage.FindByRoleQuery{Role: role, Status: status})
+	policy, err := h.PolicyStorage.FindByRole(storage.FindByRoleQuery{Role: role, Status: status})
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 
 	if policy == nil {
 		http.Error(w, "policy not found", http.StatusNotFound)
@@ -91,7 +108,11 @@ func (h *Handlers) SetPolicyStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy := h.PolicyStorage.Get(policyID)
+	policy, err := h.PolicyStorage.Get(policyID)
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 
 	if policy == nil {
 		http.Error(w, "policy not found", http.StatusNotFound)
@@ -100,7 +121,7 @@ func (h *Handlers) SetPolicyStatus(w http.ResponseWriter, r *http.Request) {
 
 	policy.Status = b.Status
 
-	err := h.PolicyStorage.CreateOrUpdate(*policy)
+	err = h.PolicyStorage.CreateOrUpdate(*policy)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 	}

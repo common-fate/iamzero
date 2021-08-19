@@ -159,7 +159,7 @@ func (c *Collector) HandleSQSMessage(ctx context.Context, msg *types.Message) er
 		token = nil
 	}
 
-	advisor := recommendations.NewAdvisor()
+	advisor := recommendations.NewAdvisor(c.auditor)
 
 	_, err = c.handleRecommendation(handleRecommendationArgs{
 		Event:   rec,

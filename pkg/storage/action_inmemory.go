@@ -7,36 +7,37 @@ import (
 	"github.com/common-fate/iamzero/pkg/recommendations"
 )
 
-type ActionStorage struct {
+type InMemoryActionStorage struct {
 	sync.RWMutex
 	actions []recommendations.AWSAction
 }
 
-func NewAlertStorage() *ActionStorage {
-	return &ActionStorage{actions: []recommendations.AWSAction{}}
+func NewInMemoryActionStorage() *InMemoryActionStorage {
+	return &InMemoryActionStorage{actions: []recommendations.AWSAction{}}
 }
 
-func (a *ActionStorage) Add(action recommendations.AWSAction) {
+func (a *InMemoryActionStorage) Add(action recommendations.AWSAction) error {
 	a.Lock()
 	defer a.Unlock()
 	a.actions = append(a.actions, action)
-}
-
-func (a *ActionStorage) List() []recommendations.AWSAction {
-	return a.actions
-}
-
-func (a *ActionStorage) Get(id string) *recommendations.AWSAction {
-	for _, action := range a.actions {
-		if action.ID == id {
-			return &action
-		}
-	}
 	return nil
 }
 
+func (a *InMemoryActionStorage) List() ([]recommendations.AWSAction, error) {
+	return a.actions, nil
+}
+
+func (a *InMemoryActionStorage) Get(id string) (*recommendations.AWSAction, error) {
+	for _, action := range a.actions {
+		if action.ID == id {
+			return &action, nil
+		}
+	}
+	return nil, nil
+}
+
 // ListForPolicy lists all the actions that related to a given policy
-func (a *ActionStorage) ListForPolicy(policyID string) []recommendations.AWSAction {
+func (a *InMemoryActionStorage) ListForPolicy(policyID string) ([]recommendations.AWSAction, error) {
 	actions := []recommendations.AWSAction{}
 
 	for _, action := range a.actions {
@@ -44,10 +45,10 @@ func (a *ActionStorage) ListForPolicy(policyID string) []recommendations.AWSActi
 			actions = append(actions, action)
 		}
 	}
-	return actions
+	return actions, nil
 }
 
-func (a *ActionStorage) SetStatus(id string, status string) error {
+func (a *InMemoryActionStorage) SetStatus(id string, status string) error {
 	a.Lock()
 	defer a.Unlock()
 	for i, alert := range a.actions {
@@ -59,7 +60,7 @@ func (a *ActionStorage) SetStatus(id string, status string) error {
 	return errors.New("could not find alert")
 }
 
-func (s *ActionStorage) Update(action recommendations.AWSAction) error {
+func (s *InMemoryActionStorage) Update(action recommendations.AWSAction) error {
 	s.Lock()
 	defer s.Unlock()
 	for i, a := range s.actions {

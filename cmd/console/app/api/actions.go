@@ -46,7 +46,11 @@ func (h *Handlers) ListActions(w http.ResponseWriter, r *http.Request) {
 
 	actionsResponse := []ActionResponse{}
 
-	actions := h.ActionStorage.List()
+	actions, err := h.ActionStorage.List()
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 
 	for _, action := range actions {
 		res := buildActionResponse(action)
@@ -60,7 +64,11 @@ func (h *Handlers) GetAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	actionID := chi.URLParam(r, "actionID")
 
-	action := h.ActionStorage.Get(actionID)
+	action, err := h.ActionStorage.Get(actionID)
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 
 	if action == nil {
 		http.Error(w, "action not found", http.StatusNotFound)
@@ -87,13 +95,21 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	action := h.ActionStorage.Get(actionID)
+	action, err := h.ActionStorage.Get(actionID)
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 	if action == nil {
 		io.RespondText(ctx, h.Log, w, "action not found", http.StatusNotFound)
 		return
 	}
 
-	policy := h.PolicyStorage.Get(action.PolicyID)
+	policy, err := h.PolicyStorage.Get(action.PolicyID)
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 	if policy == nil {
 		io.RespondText(ctx, h.Log, w, "policy not found", http.StatusNotFound)
 		return
@@ -116,7 +132,11 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return the updated Policy corresponding to this alert
-	actions := h.ActionStorage.ListForPolicy(policy.ID)
+	actions, err := h.ActionStorage.ListForPolicy(policy.ID)
+	if err != nil {
+		io.RespondError(ctx, h.Log, w, err)
+		return
+	}
 
 	policy.RecalculateDocument(actions)
 	if err := h.PolicyStorage.CreateOrUpdate(*policy); err != nil {

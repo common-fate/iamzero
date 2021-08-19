@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/common-fate/iamzero/api/io"
 	"github.com/common-fate/iamzero/internal/middleware"
+	"github.com/common-fate/iamzero/pkg/audit"
+	"github.com/common-fate/iamzero/pkg/policies"
 	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
@@ -67,7 +70,7 @@ func (c *Collector) HTTPCreateEventBatchHandler(w http.ResponseWriter, r *http.R
 
 	c.log.With("events", rec).Info("received events")
 
-	advisor := recommendations.NewAdvisor()
+	advisor := recommendations.NewAdvisor(c.auditor)
 
 	var res CreateEventBatchResponse
 	for _, e := range rec {
@@ -118,24 +121,48 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 		e.Identity.Account = "123456789012"
 	}
 
+	// see whether we have an infrastructure-as-code definition for the role in question
+	roleARN, err := arn.Parse(e.Identity.Role)
+	if err != nil {
+		return nil, err
+	}
+	c.log.With("roleARN", roleARN.Resource).Debug("decoded role ARN")
+
+	physicalID, err := audit.GetPhysicalIDFromARNResource(roleARN.Resource)
+	if err != nil {
+		return nil, err
+	}
+
+	cdkResource := c.auditor.GetCDKResourceByPhysicalID(physicalID)
+	c.log.With("cdkResource", cdkResource, "physicalID", physicalID).Debug("looked up CDK resource")
+
 	// try and find an existing policy
-	policy := c.policyStorage.FindByRoleAndToken(storage.FindPolicyQuery{
+	policy, err := c.policyStorage.FindByRole(storage.FindByRoleQuery{
 		Role:   e.Identity.Role,
-		Token:  token,
 		Status: recommendations.PolicyStatusActive,
 	})
+	if err != nil {
+		return nil, err
+	}
 	if policy == nil {
+		identity := recommendations.ProcessedAWSIdentity{
+			User:        e.Identity.User,
+			Role:        e.Identity.Role,
+			Account:     e.Identity.Account,
+			CDKResource: cdkResource,
+		}
+
 		// create a new policy for the token and role if it doesn't exist
 		policy = &recommendations.Policy{
 			ID:          uuid.NewString(),
-			Identity:    e.Identity,
+			Identity:    identity,
 			LastUpdated: time.Now(),
 			Token:       token,
 			EventCount:  0,
 			Status:      "active",
-			Document: recommendations.AWSIAMPolicy{
+			Document: policies.AWSIAMPolicy{
 				Version:   "2012-10-17",
-				Statement: []recommendations.AWSIAMStatement{},
+				Statement: []policies.AWSIAMStatement{},
 			},
 		}
 	}
@@ -168,10 +195,20 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 	}
 
 	c.log.With("action", action).Info("adding action")
-	c.actionStorage.Add(action)
+	err = c.actionStorage.Add(action)
+	if err != nil {
+		return nil, err
+	}
 
-	actions := c.actionStorage.ListForPolicy(policy.ID)
+	actions, err := c.actionStorage.ListForPolicy(policy.ID)
+	if err != nil {
+		return nil, err
+	}
 	policy.RecalculateDocument(actions)
+
+	if c.CDK {
+		policy.RecalculateCDKFinding(actions, c.log)
+	}
 
 	err = c.policyStorage.CreateOrUpdate(*policy)
 	if err != nil {

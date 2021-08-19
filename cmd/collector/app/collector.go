@@ -18,10 +18,12 @@ type Collector struct {
 	tracer        trace.Tracer
 	tokenStore    tokens.TokenStorer
 	demo          bool
-	actionStorage *storage.ActionStorage
-	policyStorage *storage.PolicyStorage
+	actionStorage storage.ActionStorage
+	policyStorage storage.PolicyStorage
 	auditor       *audit.Auditor
 
+	// whether to enable the AWS CDK resource integration
+	CDK                   bool
 	Host                  string
 	Demo                  bool
 	TransportSQSEnabled   bool
@@ -42,13 +44,14 @@ type CollectorOptions struct {
 	Tracer        trace.Tracer
 	Auditor       *audit.Auditor
 	TokenStore    tokens.TokenStorer
-	ActionStorage *storage.ActionStorage
-	PolicyStorage *storage.PolicyStorage
+	ActionStorage storage.ActionStorage
+	PolicyStorage storage.PolicyStorage
 }
 
 func (c *Collector) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.Host, "collector-host", "0.0.0.0:13991", "the collector hostname to listen on")
 	fs.BoolVar(&c.Demo, "collector-demo", false, "run in demo mode, censoring AWS role info")
+	fs.BoolVar(&c.CDK, "cdk", false, "whether to audit CDK resources (requires at least one audit-role argument to be passed)")
 	fs.BoolVar(&c.TransportSQSEnabled, "transport-sqs-enabled", false, "enable SQS collector transport")
 	fs.BoolVar(&c.TransportSQSTokenAuth, "transport-sqs-token-auth", true, "verify IAM Zero token on events received via SQS")
 	fs.StringVar(&c.TransportSQSQueueURL, "transport-sqs-queue-url", "", "(if SQS transport enabled) the SQS queue URL")
@@ -68,6 +71,13 @@ func (c *Collector) Start(ctx context.Context, opts *CollectorOptions) error {
 	// if err != nil {
 	// 	return err
 	// }
+
+	if c.CDK {
+		err := c.auditor.LoadCloudFormationStacks(ctx)
+		if err != nil {
+			return err
+		}
+	}
 
 	c.auditor.LoadFixture()
 
