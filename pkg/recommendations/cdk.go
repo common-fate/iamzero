@@ -3,7 +3,7 @@ package recommendations
 // CDKFinding is proposed CDK source code changes recommended by IAM Zero
 type CDKFinding struct {
 	FindingID       string              `json:"findingId"`
-	Role            CDKRole             `json:"cdkRole"`
+	Role            CDKRole             `json:"role"`
 	Recommendations []CDKRecommendation `json:"recommendations"`
 }
 

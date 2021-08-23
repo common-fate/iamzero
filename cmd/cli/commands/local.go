@@ -178,7 +178,7 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 
 	db, err := storage.OpenBoltDB()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error opening local database, ensure that you are not running 'iamzero local'")
 	}
 
 	actionStorage := storage.NewBoltActionStorage(db)

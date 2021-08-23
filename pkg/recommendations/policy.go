@@ -105,9 +105,10 @@ func (p *Policy) RecalculateCDKFinding(actions []AWSAction, log *zap.SugaredLogg
 									CDKPath:   &resource.CDKResource.CDKPath,
 								}
 							} else {
+								allResources := "*"
 								cdkResource = CDKResource{
 									Reference: "IAM",
-									ARN:       &resource.CDKResource.PhysicalID, // TODO: replace with actual ARN
+									ARN:       &allResources, // TODO: replace with actual ARN
 								}
 							}
 							cdkStatement.Resources = append(cdkStatement.Resources, cdkResource)
