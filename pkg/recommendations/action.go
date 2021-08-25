@@ -15,6 +15,7 @@ type Resource struct {
 	// a friendly name for the resource
 	Name        string                `json:"name"`
 	CDKResource *policies.CDKResource `json:"cdkResource"`
+	ARN         string                `json:"arn"`
 }
 
 type AWSAction struct {

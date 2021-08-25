@@ -68,18 +68,20 @@ func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONA
 			// e.g. DynamoDB tables or KMS keys.
 			cdkResource := a.auditor.GetCDKResourceByPhysicalID(friendlyResourceName)
 
-			resources = append(resources, Resource{
-				ID:          uuid.NewString(),
-				Name:        friendlyResourceName,
-				CDKResource: cdkResource,
-			})
-
 			var resBytes bytes.Buffer
 			err = tmpl.Execute(&resBytes, vars)
 			if err != nil {
 				return nil, err
 			}
+
 			renderedResources = append(renderedResources, resBytes.String())
+
+			resources = append(resources, Resource{
+				ID:          uuid.NewString(),
+				Name:        friendlyResourceName,
+				CDKResource: cdkResource,
+				ARN:         resBytes.String(),
+			})
 		}
 
 		iamStatement := policies.AWSIAMStatement{
