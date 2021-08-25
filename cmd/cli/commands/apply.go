@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/common-fate/iamzero/pkg/applier"
@@ -28,6 +29,7 @@ type ApplyCommand struct {
 
 	logLevel          string
 	applierBinaryPath string
+	skipSynth         bool
 }
 
 func askForConfirmation() bool {
@@ -60,6 +62,7 @@ func NewApplyCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 
 	fs.StringVar(&c.logLevel, "log-level", "info", "the log level (must match go.uber.org/zap log levels)")
 	fs.StringVar(&c.applierBinaryPath, "applier-binary-path", "iamzero-cdk-applier", "the path to the IAM Zero CDK applier binary")
+	fs.BoolVar(&c.skipSynth, "skip-synth", false, "skip running the 'cdk synth' command as part of the analysis")
 
 	rootConfig.RegisterFlags(fs)
 
@@ -111,17 +114,24 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 	} else if err != nil {
 		return err
 	}
-
-	fmt.Println("Synthesizing the CDK stack...")
-
-	cmd := exec.CommandContext(ctx, "cdk", "synth")
-	cmd.Dir = projectPath
-
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Run()
+	absPath, err := filepath.Abs(projectPath)
 	if err != nil {
 		return err
+	}
+
+	fmt.Printf("We detected an AWS CDK project at %s\n", absPath)
+	if !c.skipSynth {
+		fmt.Println("Synthesizing the CDK project with 'cdk synth' so that we can analyse it (you can skip this step by passing the -skip-synth flag)...")
+
+		cmd := exec.CommandContext(ctx, "cdk", "synth")
+		cmd.Dir = projectPath
+
+		cmd.Stderr = os.Stderr
+
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
 	}
 
 	// After the stack is synthesized the manifest file will be available
@@ -159,7 +169,7 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 			}
 			log.With("out", out).Debug("parsed applier output")
 
-			fmt.Printf("[IAM ZERO] We found a recommended change based on our least-privilege policy analysis:\n\n")
+			fmt.Printf("\n💡 We found a recommended change based on our least-privilege policy analysis:\n\n")
 
 			for _, o := range out {
 				diff, err := applier.GetDiff(o.Path, o.Contents)
