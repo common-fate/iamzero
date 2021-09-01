@@ -4,10 +4,11 @@ go 1.16
 
 require (
 	github.com/asdine/storm/v3 v3.2.1
-	github.com/aws/aws-sdk-go-v2 v1.8.0
+	github.com/aws/aws-sdk-go-v2 v1.9.0
 	github.com/aws/aws-sdk-go-v2/config v1.4.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.3.0
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.1.2
+	github.com/aws/aws-sdk-go-v2/service/athena v1.6.0
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.8.0
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.4.0
 	github.com/aws/aws-sdk-go-v2/service/iam v1.8.0

@@ -13,6 +13,8 @@ github.com/aws/aws-sdk-go-v2 v1.7.0/go.mod h1:tb9wi5s61kTDA5qCkcDbt3KRVV74GGslQk
 github.com/aws/aws-sdk-go-v2 v1.7.1/go.mod h1:L5LuPC1ZgDr2xQS7AmIec/Jlc7O/Y1u2KxJyNVab250=
 github.com/aws/aws-sdk-go-v2 v1.8.0 h1:HcN6yDnHV9S7D69E7To0aUppJhiJNEzQSNcUxc7r3qo=
 github.com/aws/aws-sdk-go-v2 v1.8.0/go.mod h1:xEFuWz+3TYdlPRuo+CqATbeDWIWyaT5uAPwPaWtgse0=
+github.com/aws/aws-sdk-go-v2 v1.9.0 h1:+S+dSqQCN3MSU5vJRu1HqHrq00cJn6heIMU7X9hcsoo=
+github.com/aws/aws-sdk-go-v2 v1.9.0/go.mod h1:cK/D0BBs0b/oWPIcX/Z/obahJK1TT7IPVjy53i/mX/4=
 github.com/aws/aws-sdk-go-v2/config v1.4.1 h1:PcGp9Kf+1dHJmP3EIDZJmAmWfGABFTU0obuvYQNzWH8=
 github.com/aws/aws-sdk-go-v2/config v1.4.1/go.mod h1:HCDWZ/oeY59TPtXslxlbkCqLQBsVu6b09kiG43tdP+I=
 github.com/aws/aws-sdk-go-v2/credentials v1.3.0 h1:vXxTINCsHn6LKhR043jwSLd6CsL7KOEU7b1woMr1K1A=
@@ -25,6 +27,8 @@ github.com/aws/aws-sdk-go-v2/internal/configsources v1.0.0 h1:A9b5Mvsb4SEZuNzkxH
 github.com/aws/aws-sdk-go-v2/internal/configsources v1.0.0/go.mod h1:gVCp/Wo3eyri2BAFHafQwkpDSldgAyE+4TCGS5zrM44=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.1.0 h1:DJq/vXXF+LAFaa/kQX9C6arlf4xX4uaaqGWIyAKOCpM=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.1.0/go.mod h1:qGQ/9IfkZonRNSNLE99/yBJ7EPA/h8jlWEqtJCcaj+Q=
+github.com/aws/aws-sdk-go-v2/service/athena v1.6.0 h1:f+YUzjSKdjAyHIoaLkIjMjc13sqONqki8pfOjfWb8BI=
+github.com/aws/aws-sdk-go-v2/service/athena v1.6.0/go.mod h1:yjY3Z5oApKAezlRO14HeB/s6R5+KwP7NrlCY2+huFpk=
 github.com/aws/aws-sdk-go-v2/service/cloudformation v1.8.0 h1:ocQxaw3eo9Ja33/Jo20IdhApYwsV6Qs8uW91Ux4gelE=
 github.com/aws/aws-sdk-go-v2/service/cloudformation v1.8.0/go.mod h1:qnufs/rTmSDLwSaliexBtOdLJ85OgtGvMgFlUk5ctNA=
 github.com/aws/aws-sdk-go-v2/service/dynamodb v1.4.0 h1:EUl9GxhdKy7aqg8cZqCZ5cy/tmYtw/83rZIkmcWVFik=
@@ -49,6 +53,8 @@ github.com/aws/smithy-go v1.5.0/go.mod h1:SObp3lf9smib00L/v3U2eAKG8FyQ7iLrJnQiAm
 github.com/aws/smithy-go v1.6.0/go.mod h1:SObp3lf9smib00L/v3U2eAKG8FyQ7iLrJnQiAmR5n+E=
 github.com/aws/smithy-go v1.7.0 h1:+cLHMRrDZvQ4wk+KuQ9yH6eEg6KZEJ9RI2IkDqnygCg=
 github.com/aws/smithy-go v1.7.0/go.mod h1:SObp3lf9smib00L/v3U2eAKG8FyQ7iLrJnQiAmR5n+E=
+github.com/aws/smithy-go v1.8.0 h1:AEwwwXQZtUwP5Mz506FeXXrKBe0jA8gVM+1gEcSRooc=
+github.com/aws/smithy-go v1.8.0/go.mod h1:SObp3lf9smib00L/v3U2eAKG8FyQ7iLrJnQiAmR5n+E=
 github.com/cenkalti/backoff/v4 v4.1.1 h1:G2HAfAmvm/GcKan2oOQpBXOd2tT2G57ZnZGWa1PxPBQ=
 github.com/cenkalti/backoff/v4 v4.1.1/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
