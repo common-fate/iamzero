@@ -17,11 +17,13 @@ require (
 	github.com/fatih/color v1.12.0
 	github.com/go-chi/chi v1.5.4
 	github.com/google/uuid v1.2.0
+	github.com/hashicorp/hcl/v2 v2.10.1 // indirect
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/peterbourgon/ff/v3 v3.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/stretchr/testify v1.7.0
+	github.com/zclconf/go-cty v1.9.1
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.0.0-RC1
@@ -37,4 +39,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
+
 )
