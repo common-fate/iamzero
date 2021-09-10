@@ -81,7 +81,7 @@ func ApplyTerraformFinding(finding *TerraformFinding) []byte {
 
 func ApplyFindingToBlocks(hclFile *hclwrite.File, awsIamBlocks []*hclwrite.Block, finding *TerraformFinding, stateFile *StateFile) []byte {
 	for _, block := range awsIamBlocks {
-		if IsBlockAwsIamRole(block) && stringCompareAttributeValue(block.Body().GetAttribute("name"), finding.Role.Name) {
+		if IsBlockAwsIamRole(block) && StringCompareAttributeValue(block.Body().GetAttribute("name"), finding.Role.Name) {
 			newInlinePolicies := []*hclwrite.Block{}
 			existingInlinePoliciesToRemove := []*hclwrite.Block{}
 			for _, nestedBlock := range block.Body().Blocks() {
@@ -177,7 +177,7 @@ func WriteFile(readFilePath string, hclFile *hclwrite.File, writeFilePath string
 	return nil
 }
 
-func stringCompareAttributeValue(attribute *hclwrite.Attribute, compareTo string) bool {
+func StringCompareAttributeValue(attribute *hclwrite.Attribute, compareTo string) bool {
 	// Strip any leading or training whitespace from the Expression value or the attribute
 	// check for an exact match
 	// A valid name will include "" quotes so these are added around the input string being compared

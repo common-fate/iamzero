@@ -173,3 +173,12 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	assert.Equal(t, string(hclwrite.Format(snapshot)), string(updatedTerraform))
 
 }
+func TestStringCompareAttributeValue(t *testing.T) {
+	hclfile, err := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := hclfile.Body().Blocks()[4].Body().Attributes()["name"]
+	assert.True(t, recommendations.StringCompareAttributeValue(at, "iamzero-tf-overprivileged-role"))
+
+}
