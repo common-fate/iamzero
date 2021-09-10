@@ -206,9 +206,9 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 	}
 	policy.RecalculateDocument(actions)
 
-	// if c.CDK {
-	// 	policy.RecalculateCDKFinding(actions, c.log)
-	// }
+	if c.CDK {
+		policy.RecalculateCDKFinding(actions, c.log)
+	}
 
 	policy.RecalculateTerraformFinding(actions, c.log)
 

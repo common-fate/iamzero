@@ -159,7 +159,7 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	iamRoleName := "iamzero-tf-overprivileged-role"
 	actionsDemo := []string{"s3:GetObject"}
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket"
-	finding := &recommendations.TerraformFinding{FindingID: "abcde", Role: recommendations.TerraformRole{Name: iamRoleName}, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, Type: "AWS::S3::Bucket", ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	finding := &recommendations.TerraformFinding{FindingID: "abcde", Role: recommendations.TerraformRole{Name: iamRoleName}, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
 	hclfile, err := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
 	if err != nil {

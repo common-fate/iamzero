@@ -129,9 +129,64 @@ func PolicyStatusIsValid(status string) bool {
 }
 
 func (p *Policy) RecalculateTerraformFinding(actions []AWSAction, log *zap.SugaredLogger) {
-	iamRoleName := "iamzero-tf-overprivileged-role"
-	actionsDemo := []string{"s3:GetObject"}
-	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket"
-	p.TerraformFinding = &TerraformFinding{FindingID: "abcde", Role: TerraformRole{Name: iamRoleName}, Recommendations: []TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []TerraformStatement{{Resources: []TerraformResource{{Reference: bucketArn, Type: "AWS::S3::Bucket", ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	terraformFinding := TerraformFinding{
+		FindingID: p.ID,
+		Role: TerraformRole{
+			Name: p.Identity.Role,
+		},
+		Recommendations: []TerraformRecommendation{
+			// {
+			// 	Type: "IAMInlinePolicy",
+			// 	Statements: []TerraformStatement{
+			// 		{
+			// 			Resources: []TerraformResource{
+			// 				{
+			// 					Reference: bucketArn,
+			// 					Type:      "AWS::S3::Bucket", ARN: &bucketArn,
+			// 				},
+			// 			},
+			// 			Actions: actionsDemo,
+			// 		},
+			// 	},
+			// },
+		},
+	}
+
+	// I copied this and modified it from the CDK example, it is subject to the same TODO comments as CDK above
+	for _, alert := range actions {
+		if alert.Enabled && len(alert.Recommendations) > 0 {
+			rec := TerraformRecommendation{
+				Type:       "IAMInlinePolicy",
+				Statements: []TerraformStatement{},
+			}
+			advisory := alert.GetSelectedAdvisory()
+			for _, description := range advisory.Details().Description {
+				policy, ok := description.Policy.(policies.AWSIAMPolicy)
+				log.With("ok", ok).Debug("found policy")
+				if ok {
+					for _, s := range policy.Statement {
+						terraformStatement := TerraformStatement{
+							Actions: s.Action,
+						}
+						for _, resource := range alert.Resources {
+
+							var terraformResource TerraformResource
+							if resource.CDKResource == nil {
+
+								terraformResource = TerraformResource{
+									Reference: "IAM",
+									ARN:       &resource.ARN,
+								}
+							}
+							terraformStatement.Resources = append(terraformStatement.Resources, terraformResource)
+						}
+						rec.Statements = append(rec.Statements, terraformStatement)
+					}
+				}
+			}
+			terraformFinding.Recommendations = append(terraformFinding.Recommendations, rec)
+		}
+	}
+	p.TerraformFinding = &terraformFinding
 
 }

@@ -40,7 +40,6 @@ type TerraformStatement struct {
 
 type TerraformResource struct {
 	Reference string  `json:"reference"`
-	Type      string  `json:"type"`
 	ARN       *string `json:"arn,omitempty"`
 }
 

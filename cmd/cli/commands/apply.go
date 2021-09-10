@@ -205,34 +205,29 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 	} else if errTf == nil {
 		fmt.Printf("We detected a Terraform project at %s\n", absPath)
 
-		// for _, f := range findings {
-		// 	fmt.Println(f.TerraformFinding)
-		// 	if f.TerraformFinding != nil {
-		iamRoleName := "iamzero-tf-overprivileged-role"
-		actionsDemo := []string{"s3:GetObject"}
-		bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket"
-		finding := recommendations.TerraformFinding{FindingID: "abcde", Role: recommendations.TerraformRole{Name: iamRoleName}, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, Type: "AWS::S3::Bucket", ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+		for _, finding := range findings {
 
-		bytes := recommendations.ApplyTerraformFinding(&finding)
-		diff, err := applier.GetDiff("./main.tf", string(bytes))
-		if err != nil {
-			return err
-		}
-		fmt.Println(diff)
-		fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
+			if finding.TerraformFinding != nil {
+				bytes := recommendations.ApplyTerraformFinding(finding.TerraformFinding)
+				diff, err := applier.GetDiff("./main.tf", string(bytes))
+				if err != nil {
+					return err
+				}
+				fmt.Println(diff)
+				fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
 
-		confim := askForConfirmation()
+				confim := askForConfirmation()
 
-		if confim {
+				if confim {
 
-			err = ioutil.WriteFile("./main.tf", bytes, 0644)
-			if err != nil {
-				return err
+					err = ioutil.WriteFile("./main.tf", bytes, 0644)
+					if err != nil {
+						return err
+					}
+
+				}
 			}
-
 		}
-		// 	}
-		// }
 	}
 
 	return nil
