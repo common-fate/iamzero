@@ -204,25 +204,34 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 		}
 	} else if errTf == nil {
 		fmt.Printf("We detected a Terraform project at %s\n", absPath)
-
 		for _, finding := range findings {
 
 			if finding.TerraformFinding != nil {
-				bytes := recommendations.ApplyTerraformFinding(finding.TerraformFinding)
-				diff, err := applier.GetDiff("./main.tf", string(bytes))
+				changes, err := recommendations.ApplyTerraformFinding(finding.TerraformFinding)
 				if err != nil {
 					return err
 				}
-				fmt.Println(diff)
+				for _, change := range changes {
+
+					// Changes for change.FilePath may want to make this nicer
+					fmt.Printf("Changes for the following file (%s)", change.FilePath)
+					diff, err := applier.GetDiff(change.FilePath, string(change.FileContent))
+					if err != nil {
+						return err
+					}
+					fmt.Println(diff)
+				}
+
 				fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
 
 				confim := askForConfirmation()
 
 				if confim {
-
-					err = ioutil.WriteFile("./main.tf", bytes, 0644)
-					if err != nil {
-						return err
+					for _, change := range changes {
+						err = ioutil.WriteFile(change.FilePath, change.FileContent, 0644)
+						if err != nil {
+							return err
+						}
 					}
 
 				}

@@ -33,10 +33,11 @@ var initial = []byte(`terraform {
   locals {
 	#This should the the role of the AWS account that the user is using to login
 	aws-user-arn = "arn:aws:iam::312231318920:root"
+	role-name = "iamzero-tf-overprivileged-role"
   }
   
   resource "aws_iam_role" "iamzero-overprivileged-role" {
-	name = "iamzero-tf-overprivileged-role"
+	name = local.name //"iamzero-tf-overprivileged-role"
 	assume_role_policy = jsonencode({
 	  Version = "2012-10-17"
 	  Statement = [
@@ -89,10 +90,11 @@ var snapshot = []byte(`terraform {
   locals {
 	#This should the the role of the AWS account that the user is using to login
 	aws-user-arn = "arn:aws:iam::312231318920:root"
+	role-name = "iamzero-tf-overprivileged-role"
   }
   
   resource "aws_iam_role" "iamzero-overprivileged-role" {
-	name = "iamzero-tf-overprivileged-role"
+	name = local.name //"iamzero-tf-overprivileged-role"
 	assume_role_policy = jsonencode({
 	  Version = "2012-10-17"
 	  Statement = [
@@ -159,7 +161,7 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	iamRoleName := "iamzero-tf-overprivileged-role"
 	actionsDemo := []string{"s3:GetObject"}
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket"
-	finding := &recommendations.TerraformFinding{FindingID: "abcde", Role: recommendations.TerraformRole{Name: iamRoleName}, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	finding := &recommendations.TerraformFinding{FindingID: "abcde", Role: iamRoleName, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
 	hclfile, err := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
 	if err != nil {
@@ -168,9 +170,9 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	iamBlocks := recommendations.ParseHclFileForAwsIamBlocks(hclfile)
 	stateFile, _ := recommendations.MarshalStateFileToGo(terraformShow)
 
-	updatedTerraform := recommendations.ApplyFindingToBlocks(hclfile, iamBlocks, finding, &stateFile)
+	updatedTerraform, _ := recommendations.ApplyFindingToBlock("./", hclfile, iamBlocks[0], finding, &stateFile)
 
-	assert.Equal(t, string(hclwrite.Format(snapshot)), string(updatedTerraform))
+	assert.Equal(t, string(hclwrite.Format(snapshot)), string(updatedTerraform[0].FileContent))
 
 }
 func TestStringCompareAttributeValue(t *testing.T) {
@@ -179,6 +181,8 @@ func TestStringCompareAttributeValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	at := hclfile.Body().Blocks()[4].Body().Attributes()["name"]
+	assert.True(t, recommendations.StringCompareAttributeValue(at, "local.name"))
+	at = hclfile.Body().Blocks()[3].Body().Attributes()["role-name"]
 	assert.True(t, recommendations.StringCompareAttributeValue(at, "iamzero-tf-overprivileged-role"))
 
 }

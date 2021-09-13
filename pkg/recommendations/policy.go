@@ -131,9 +131,8 @@ func PolicyStatusIsValid(status string) bool {
 func (p *Policy) RecalculateTerraformFinding(actions []AWSAction, log *zap.SugaredLogger) {
 	terraformFinding := TerraformFinding{
 		FindingID: p.ID,
-		Role: TerraformRole{
-			Name: p.Identity.Role,
-		},
+		Role:      p.Identity.Role,
+
 		Recommendations: []TerraformRecommendation{
 			// {
 			// 	Type: "IAMInlinePolicy",
