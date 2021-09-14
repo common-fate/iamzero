@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -133,6 +132,9 @@ func resourceLabelToString(labels []string) string {
 	return strings.Join(labels[:], ".")
 }
 
+func (tr TerraformResource) SplitArn() []string {
+	return strings.Split(*tr.ARN, "/")
+}
 func ApplyFindingToBlock(filePath string, hclFile *hclwrite.File, awsIamBlock *hclwrite.Block, finding *TerraformFinding, stateFile *StateFile) ([]PendingChanges, error) {
 	newInlinePolicies := []*hclwrite.Block{}
 	existingInlinePoliciesToRemove := []*hclwrite.Block{}
@@ -146,10 +148,24 @@ func ApplyFindingToBlock(filePath string, hclFile *hclwrite.File, awsIamBlock *h
 			newBlock := hclwrite.NewBlock("inline_policy", nil)
 			actionsJson, _ := json.Marshal(statement.Actions)
 			arn := ""
-			a, _, err := stateFile.findResourceInStateFileByArn(*statement.Resources[0].ARN)
+
+			// The ARN from the recommendation can contain "/*" on the end for an s3 bucket, to look this up in
+			// @TODO probably need to verify whether we could get specific things here
+
+			splitArn := statement.Resources[0].SplitArn()
+			a, _, err := stateFile.findResourceInStateFileByArn(splitArn[0])
 			if err == nil {
 				// if we find a matching resource, then use the path to that resource
+
 				arn = a.Address + ".arn"
+
+				// if there is a specific resource then join it to the resource arn
+				if len(splitArn) > 1 && splitArn[1] != "*" {
+					// This adds a join statement to the terraform so that we refer to the correct bucket arn but add the specific resource correctly if it was specified in the finding
+					// https://www.terraform.io/docs/language/functions/join.html
+					arn = fmt.Sprintf(`join("/", [%s,"%s"])`, arn, strings.Join(splitArn[1:], "/"))
+				}
+
 			} else {
 				// add quotes around it to make it valid for our use, maybe a json stringify equivalent would be good here to add the quotes robustly
 				arn = fmt.Sprintf(`"%s"`, *statement.Resources[0].ARN)
@@ -224,33 +240,33 @@ func MarshalStateFileToGo(stateFileBytes []byte) (StateFile, error) {
 	return stateFile, nil
 }
 
-func WriteFile(readFilePath string, hclFile *hclwrite.File, writeFilePath string) error {
+// func WriteFile(readFilePath string, hclFile *hclwrite.File, writeFilePath string) error {
 
-	// heavily inspired by the YOR library
-	tempFile, err := ioutil.TempFile(filepath.Dir(readFilePath), "temp.*.tf")
-	defer func() {
-		_ = os.Remove(tempFile.Name())
-	}()
-	if err != nil {
-		return err
-	}
-	fd, err := os.OpenFile(tempFile.Name(), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	_, err = hclFile.WriteTo(fd)
-	if err != nil {
-		return err
-	}
+// 	// heavily inspired by the YOR library
+// 	tempFile, err := ioutil.TempFile(filepath.Dir(readFilePath), "temp.*.tf")
+// 	defer func() {
+// 		_ = os.Remove(tempFile.Name())
+// 	}()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	fd, err := os.OpenFile(tempFile.Name(), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	_, err = hclFile.WriteTo(fd)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// We format the file bytes before writing the file
-	err = os.WriteFile(writeFilePath, hclwrite.Format(hclFile.Bytes()), 0600)
-	if err != nil {
-		return fmt.Errorf("failed to write HCL file %s, %s", readFilePath, err.Error())
-	}
+// 	// We format the file bytes before writing the file
+// 	err = os.WriteFile(writeFilePath, hclwrite.Format(hclFile.Bytes()), 0600)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to write HCL file %s, %s", readFilePath, err.Error())
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func StringCompareAttributeValue(attribute *hclwrite.Attribute, compareTo string) bool {
 	// Strip any leading or training whitespace from the Expression value or the attribute
