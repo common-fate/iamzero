@@ -17,6 +17,7 @@ import (
 	"github.com/common-fate/iamzero/pkg/applier"
 	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/common-fate/iamzero/pkg/storage"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -115,7 +116,7 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 	_, errTf := os.Stat(path.Join(projectPath, "main.tf"))
 
 	if (os.IsExist(errCdk) || os.IsExist(errTf)) && !(os.IsExist(errCdk) && os.IsExist(errTf)) {
-		return fmt.Errorf("We couldn't find a CDK project or a Terraform Project at %s. Please ensure that you are providing a path to a CDK project (which should contain a 'cdk.json' file) or a Terraform project (which should contain a 'main.tf' file)", projectPath)
+		return fmt.Errorf("we couldn't find a CDK project or a Terraform Project at %s. Please ensure that you are providing a path to a CDK project (which should contain a 'cdk.json' file) or a Terraform project (which should contain a 'main.tf' file)", projectPath)
 	} else if errTf != nil {
 		return fmt.Errorf("something went wrong (%s)\n(%s)", errCdk, errTf)
 	}
@@ -181,7 +182,7 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 				fmt.Printf("\n💡 We found a recommended change based on our least-privilege policy analysis:\n\n")
 
 				for _, o := range out {
-					diff, err := applier.GetDiff(o.Path, o.Contents)
+					diff, err := applier.GetDiff(o.Path, o.Contents, false)
 					if err != nil {
 						return err
 					}
@@ -207,15 +208,18 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 		for _, finding := range findings {
 
 			if finding.TerraformFinding != nil {
-				changes, err := recommendations.ApplyTerraformFinding(finding.TerraformFinding)
+				fmt.Println("Applying finding", finding.TerraformFinding.Role)
+				fh := recommendations.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
+				changes, err := fh.ApplyTerraformFinding(finding.TerraformFinding)
 				if err != nil {
 					return err
 				}
+
 				for _, change := range changes {
 
 					// Changes for change.FilePath may want to make this nicer
 					fmt.Printf("Changes for the following file (%s)", change.FilePath)
-					diff, err := applier.GetDiff(change.FilePath, string(change.FileContent))
+					diff, err := applier.GetDiff(change.FilePath, string(change.FileContent), true)
 					if err != nil {
 						return err
 					}

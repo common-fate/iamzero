@@ -220,16 +220,18 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket/*"
 	finding := &recommendations.TerraformFinding{FindingID: "abcde", Role: iamRoleName, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
-	hclfile, err := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
-	if err != nil {
-		t.Fatal(err)
+	hclfile, diag := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
+	if diag != nil {
+		t.Fatal(diag)
 	}
 	iamBlocks := recommendations.ParseHclFileForAwsIamBlocks(hclfile)
 	stateFile, _ := recommendations.MarshalStateFileToGo(terraformShow)
+	stateFileResource, _, _, _ := stateFile.FindResourceInStateFileByArn(finding.Role)
+	block := recommendations.AwsIamBlock{iamBlocks[0]}
+	fh := recommendations.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
+	fh.ApplyFindingToBlock(&block, "./", hclfile, finding, stateFileResource, &stateFile)
 
-	updatedTerraform, _ := recommendations.ApplyFindingToBlock("./", hclfile, iamBlocks[0], finding, &stateFile)
-
-	assert.Equal(t, string(hclwrite.Format(snapshot)), string(updatedTerraform[0].FileContent))
+	assert.Equal(t, string(hclwrite.Format(snapshot)), string(hclwrite.Format(hclfile.Bytes())))
 
 }
 func TestStringCompareAttributeValue(t *testing.T) {
@@ -257,9 +259,11 @@ func TestApplyFindingToBlocksWithSpecificBucketResource(t *testing.T) {
 	}
 	iamBlocks := recommendations.ParseHclFileForAwsIamBlocks(hclfile)
 	stateFile, _ := recommendations.MarshalStateFileToGo(terraformShow)
+	stateFileResource, _, _, _ := stateFile.FindResourceInStateFileByArn(finding.Role)
+	block := recommendations.AwsIamBlock{iamBlocks[0]}
+	fh := recommendations.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
+	fh.ApplyFindingToBlock(&block, "./", hclfile, finding, stateFileResource, &stateFile)
 
-	updatedTerraform, _ := recommendations.ApplyFindingToBlock("./", hclfile, iamBlocks[0], finding, &stateFile)
-
-	assert.Equal(t, string(hclwrite.Format(snapshotSpecificResource)), string(updatedTerraform[0].FileContent))
+	assert.Equal(t, string(hclwrite.Format(snapshotSpecificResource)), string(hclwrite.Format(hclfile.Bytes())))
 
 }

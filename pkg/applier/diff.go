@@ -3,6 +3,7 @@ package applier
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/fatih/color"
@@ -72,14 +73,18 @@ func (d IAMZeroDiff) Format(f fmt.State, r rune) {
 }
 
 // GetDiff reads a file and gets the diff between the file and a provided
+// set allowNewFiles to true to show diffs for new files rather than return an error
 // `modified` string
-func GetDiff(file, modified string) (string, error) {
+func GetDiff(file, modified string, allowNewFiles bool) (string, error) {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
-		return "", err
+		if !(os.IsNotExist(err) && allowNewFiles) {
+			return "", err
+		}
+
 	}
 	edits := myers.ComputeEdits(span.URIFromPath(file), string(data), modified)
-	u := gotextdiff.ToUnified(file, file, string(data), edits)
+	u := gotextdiff.ToUnified("", "", string(data), edits)
 	f := IAMZeroDiffFromUnified(u)
 	diff := fmt.Sprint(f)
 	return diff, nil
