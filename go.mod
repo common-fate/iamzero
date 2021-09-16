@@ -18,6 +18,7 @@ require (
 	github.com/go-chi/chi v1.5.4
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/hcl/v2 v2.10.1 // indirect
+	github.com/hashicorp/hcl2 v0.0.0-20191002203319-fb75b3253c80
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/peterbourgon/ff/v3 v3.0.0
 	github.com/pkg/errors v0.9.1

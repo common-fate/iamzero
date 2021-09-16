@@ -97,6 +97,16 @@ func addInputToModuleDeclaration(block *hclwrite.Block, variableName string, res
 	block.Body().SetAttributeRaw(variableName, toks)
 }
 
+func addVariableBlockIfNotExist(body *hclwrite.Body, name string, description string) string {
+
+	block := FindBlockWithMatchingLabel(body.Blocks(), name)
+	if block != nil {
+		return name
+	}
+	addVariableBlock(body, name, description)
+	return name
+
+}
 func addVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("variable", []string{name})
@@ -105,10 +115,21 @@ func addVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendBlock(newBlock)
 	body.AppendNewline()
 }
+
+func addOutputBlockIfNotExist(body *hclwrite.Body, name string, description string, value string) string {
+	block := FindBlockWithMatchingValueAttribute(body.Blocks(), value)
+	if block != nil {
+		return block.Labels()[0]
+	}
+	addOutputBlock(body, name, description, value)
+	return name
+}
 func addOutputBlock(body *hclwrite.Body, name string, description string, value string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("output", []string{name})
-	newBlock.Body().SetAttributeValue("value", cty.StringVal(value))
+	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(value)}
+	toks := hclwrite.Tokens{&t}
+	newBlock.Body().SetAttributeRaw("value", toks)
 	newBlock.Body().SetAttributeValue("description", cty.StringVal(description))
 	body.AppendBlock(newBlock)
 	body.AppendNewline()
@@ -237,6 +258,27 @@ func FindBlockByModuleAddress(blocks []*hclwrite.Block, moduleAddress string) *h
 	return nil
 }
 
+func FindBlockWithMatchingValueAttribute(blocks []*hclwrite.Block, valueString string) *hclwrite.Block {
+	for _, block := range blocks {
+		value := block.Body().GetAttribute("value")
+		if value != nil && strings.Trim(string(value.Expr().BuildTokens(nil).Bytes()), " ") == valueString {
+			return block
+		}
+	}
+	return nil
+}
+func FindBlockWithMatchingLabel(blocks []*hclwrite.Block, name string) *hclwrite.Block {
+	for _, block := range blocks {
+		if len(block.Labels()) > 0 {
+			value := block.Labels()[0]
+			if value == name {
+				return block
+			}
+		}
+	}
+	return nil
+}
+
 func resourceLabelToString(labels []string) string {
 	return strings.Join(labels[:], ".")
 }
@@ -297,9 +339,9 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					if err != nil {
 						fmt.Println(err)
 					}
-					outputName := GenerateOutputName(awsResource.Name, "arn")
 
-					addOutputBlock(outputsFile.Body(), outputName, "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+					outputName := addOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+
 					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
 					resourcePathInRootModule := ""
 					if moduleDefinitionInRoot != nil {
@@ -317,8 +359,8 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					if err != nil {
 						fmt.Println(err)
 					}
-					variableName := GenerateVariableName(awsResource.Name, "arn")
-					addVariableBlock(variablesFile.Body(), variableName, "IAMZero generated variable for resource")
+
+					variableName := addVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
 					moduleDefinitionInRoot = FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
 					if moduleDefinitionInRoot != nil {
@@ -337,9 +379,8 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					if err != nil {
 						fmt.Println(err)
 					}
-					outputName := GenerateOutputName(awsResource.Name, "arn")
+					outputName := addOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
 
-					addOutputBlock(outputsFile.Body(), outputName, "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+"."))
 					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
 					if moduleDefinitionInRoot != nil {
 
@@ -357,8 +398,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					if err != nil {
 						fmt.Println(err)
 					}
-					variableName := GenerateVariableName(awsResource.Name, "arn")
-					addVariableBlock(variablesFile.Body(), variableName, "IAMZero generated variable for resource")
+					variableName := addVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
 					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
 					if moduleDefinitionInRoot != nil {
