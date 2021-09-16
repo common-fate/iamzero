@@ -91,23 +91,23 @@ func GenerateOutputName(resourceName string, propertyType string) string {
 	return strings.Join([]string{"iamzeroout", resourceName, propertyType}, "_")
 }
 
-func addInputToModuleDeclaration(block *hclwrite.Block, variableName string, resourcePath string) {
+func AddInputToModuleDeclaration(block *hclwrite.Block, variableName string, resourcePath string) {
 	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(resourcePath)}
 	toks := hclwrite.Tokens{&t}
 	block.Body().SetAttributeRaw(variableName, toks)
 }
 
-func addVariableBlockIfNotExist(body *hclwrite.Body, name string, description string) string {
+func AddVariableBlockIfNotExist(body *hclwrite.Body, name string, description string) string {
 
 	block := FindBlockWithMatchingLabel(body.Blocks(), name)
 	if block != nil {
 		return name
 	}
-	addVariableBlock(body, name, description)
+	AddVariableBlock(body, name, description)
 	return name
 
 }
-func addVariableBlock(body *hclwrite.Body, name string, description string) {
+func AddVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("variable", []string{name})
 	newBlock.Body().SetAttributeValue("type", cty.StringVal("string"))
@@ -116,15 +116,15 @@ func addVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 }
 
-func addOutputBlockIfNotExist(body *hclwrite.Body, name string, description string, value string) string {
+func AddOutputBlockIfNotExist(body *hclwrite.Body, name string, description string, value string) string {
 	block := FindBlockWithMatchingValueAttribute(body.Blocks(), value)
 	if block != nil {
 		return block.Labels()[0]
 	}
-	addOutputBlock(body, name, description, value)
+	AddOutputBlock(body, name, description, value)
 	return name
 }
-func addOutputBlock(body *hclwrite.Body, name string, description string, value string) {
+func AddOutputBlock(body *hclwrite.Body, name string, description string, value string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("output", []string{name})
 	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(value)}
@@ -148,7 +148,18 @@ func (fh FileHandler) OpenFile(path string, createIfNotExist bool) (*hclwrite.Fi
 	return fh.HclFiles[path], nil
 
 }
+func (fh FileHandler) SeekAndDestroyPolicyAttachmentsForRole(stateFile *StateFile, stateFileRole StateFileResource) {
+	attachments := stateFile.findPolicyAttachmentsInStateFileByRoleName(stateFileRole.Values.Name)
+	for key, element := range attachments {
+		// for each terraform file, update all the modules
+		hclFile, _ := fh.OpenFile(key, false)
+		for _, stateFileResource := range element {
+			policyAttachmentBlock := FindBlockByModuleAddress(hclFile.Body().Blocks(), stateFileResource.Type+"."+stateFileResource.Name)
+			removePolicyAttachmentRole(policyAttachmentBlock, stateFileRole)
+		}
+	}
 
+}
 func (fh FileHandler) PendingChanges() []PendingChanges {
 	/*
 		return the formatted bytes for each open file
@@ -189,6 +200,148 @@ func (fh FileHandler) ApplyTerraformFinding(finding *TerraformFinding) ([]Pendin
 	return []PendingChanges{}, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
 
 }
+func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath string, hclFile *hclwrite.File, finding *TerraformFinding, iamRoleStateFileResource StateFileResource, stateFile *StateFile) error {
+	newInlinePolicies := []*hclwrite.Block{}
+	existingInlinePoliciesToRemove := []*hclwrite.Block{}
+	for _, nestedBlock := range awsIamBlock.Body().Blocks() {
+		if IsBlockInlinePolicy(nestedBlock) {
+			existingInlinePoliciesToRemove = append(existingInlinePoliciesToRemove, nestedBlock)
+		}
+	}
+
+	for _, reccomendation := range finding.Recommendations {
+		for i, statement := range reccomendation.Statements {
+			newBlock := hclwrite.NewBlock("inline_policy", nil)
+			actionsJson, _ := json.Marshal(statement.Actions)
+			arn := ""
+
+			// The ARN from the recommendation can contain "/*" on the end for an s3 bucket, to look this up in
+			// @TODO probably need to verify whether we could get specific things here(as in specific objects in a bucket)
+
+			splitArn := statement.Resources[0].SplitArn()
+			awsResource, resourceTerraformFilePath, parentModuleAddress, err := stateFile.FindResourceInStateFileByArn(splitArn[0])
+			root, _ := fh.OpenFile("./main.tf", false)
+			if err == nil {
+				/*
+					THE BELOW SCENARIOS ONLY SUPPORT A FLAT PROJECT STRUCTURE WHERE THERE IS ONLY 1 LEVEL OF MODULE ABSTRACTION
+
+					MAIN.TF
+						->MODULES
+							->EC2
+								MAIN.TF
+
+				*/
+				if awsResource.Address == iamRoleStateFileResource.Address {
+					// both in same file
+					// standard method
+					arn = awsResource.Address + ".arn"
+					// if there is a specific resource then join it to the resource arn
+					if len(splitArn) > 1 && splitArn[1] != "*" {
+						// This adds a join statement to the terraform so that we refer to the correct bucket arn but add the specific resource correctly if it was specified in the finding
+						// https://www.terraform.io/docs/language/functions/join.html
+						arn = fmt.Sprintf(`join("/", [%s,"%s"])`, arn, strings.Join(splitArn[1:], "/"))
+					}
+
+				} else if !awsResource.IsInRoot() && !iamRoleStateFileResource.IsInRoot() {
+					// resources are in different files
+					// create and output for the resource
+					// create a variable for the role module
+					//do the plumbing
+					outputsFilePath := filepath.Join(filepath.Dir(resourceTerraformFilePath), "outputs.tf")
+					outputsFile, err := fh.OpenFile(outputsFilePath, true)
+					if err != nil {
+						fmt.Println(err)
+					}
+
+					outputName := AddOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
+					resourcePathInRootModule := ""
+					if moduleDefinitionInRoot != nil {
+
+						resourcePathInRootModule = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
+					}
+
+					// resource is in root, role is in another file
+					// create variable for role module
+					// add variable value in root module declaration
+
+					// add variable for a resource
+					variableFilePath := filepath.Join(filepath.Dir(filePath), "variables.tf")
+					variablesFile, err := fh.OpenFile(variableFilePath, true)
+					if err != nil {
+						fmt.Println(err)
+					}
+
+					variableName := AddVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
+
+					moduleDefinitionInRoot = FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
+					if moduleDefinitionInRoot != nil {
+						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, resourcePathInRootModule)
+						arn = "var." + variableName
+					}
+
+				} else if !awsResource.IsInRoot() && iamRoleStateFileResource.IsInRoot() {
+
+					// role is in root,  resource is in another file
+					// create an output from the resource definition
+					// refer to it in the root inline policy
+
+					outputsFilePath := filepath.Join(filepath.Dir(resourceTerraformFilePath), "outputs.tf")
+					outputsFile, err := fh.OpenFile(outputsFilePath, true)
+					if err != nil {
+						fmt.Println(err)
+					}
+					outputName := AddOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
+					if moduleDefinitionInRoot != nil {
+
+						arn = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
+					}
+
+				} else if awsResource.IsInRoot() && !iamRoleStateFileResource.IsInRoot() {
+					// resource is in root, role is in another file
+					// create variable for role module
+					// add variable value in root module declaration
+
+					// add variable for a resource
+					variableFilePath := filepath.Join(filepath.Dir(filePath), "variables.tf")
+					variablesFile, err := fh.OpenFile(variableFilePath, true)
+					if err != nil {
+						fmt.Println(err)
+					}
+					variableName := AddVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
+
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
+					if moduleDefinitionInRoot != nil {
+						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, awsResource.Address+".arn")
+						arn = "var." + variableName
+					}
+				}
+
+			} else {
+				// add quotes around it to make it valid for our use, maybe a json stringify equivalent would be good here to add the quotes robustly
+				arn = fmt.Sprintf(`"%s"`, *statement.Resources[0].ARN)
+				fmt.Printf("Failed to find matching resource in state file for ARN(%s) in (%s) using ARN reference directly\n", arn, stateFile)
+			}
+
+			setInlinePolicyIamPolicy(newBlock, string(actionsJson), arn, "iamzero-generated-iam-policy-"+fmt.Sprint(i))
+			newInlinePolicies = append(newInlinePolicies, newBlock)
+		}
+	}
+	// some logic probably works out whether all existing policies need to go
+	for _, blockToRemove := range existingInlinePoliciesToRemove {
+		awsIamBlock.Body().RemoveBlock(blockToRemove)
+	}
+	// add the new blocks(inline policies) to this role
+	for _, blockToAdd := range newInlinePolicies {
+		awsIamBlock.Body().AppendBlock(blockToAdd)
+	}
+	return nil
+
+}
+
 func removePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileResource) {
 	line := string(block.Body().GetAttribute("roles").Expr().BuildTokens(hclwrite.Tokens{}).Bytes())
 	line = strings.Trim(line, " []")
@@ -205,19 +358,6 @@ func removePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileRe
 	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(fmt.Sprintf(`[%s]`, strings.Join(filteredRoles, ",")))}
 	toks := hclwrite.Tokens{&t}
 	block.Body().SetAttributeRaw("roles", toks)
-}
-
-func (fh FileHandler) SeekAndDestroyPolicyAttachmentsForRole(stateFile *StateFile, stateFileRole StateFileResource) {
-	attachments := stateFile.findPolicyAttachmentsInStateFileByRoleName(stateFileRole.Values.Name)
-	for key, element := range attachments {
-		// for each terraform file, update all the modules
-		hclFile, _ := fh.OpenFile(key, false)
-		for _, stateFileResource := range element {
-			policyAttachmentBlock := FindBlockByModuleAddress(hclFile.Body().Blocks(), stateFileResource.Type+"."+stateFileResource.Name)
-			removePolicyAttachmentRole(policyAttachmentBlock, stateFileRole)
-		}
-	}
-
 }
 func FindIamRoleBlockByModuleAddress(blocks []*hclwrite.Block, moduleAddress string) *AwsIamBlock {
 	//filters the blocks to find the target block by matching the address
@@ -285,148 +425,6 @@ func resourceLabelToString(labels []string) string {
 
 func (tr TerraformResource) SplitArn() []string {
 	return strings.Split(*tr.ARN, "/")
-}
-
-func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath string, hclFile *hclwrite.File, finding *TerraformFinding, iamRoleStateFileResource StateFileResource, stateFile *StateFile) error {
-	newInlinePolicies := []*hclwrite.Block{}
-	existingInlinePoliciesToRemove := []*hclwrite.Block{}
-	for _, nestedBlock := range awsIamBlock.Body().Blocks() {
-		if IsBlockInlinePolicy(nestedBlock) {
-			existingInlinePoliciesToRemove = append(existingInlinePoliciesToRemove, nestedBlock)
-		}
-	}
-
-	for _, reccomendation := range finding.Recommendations {
-		for i, statement := range reccomendation.Statements {
-			newBlock := hclwrite.NewBlock("inline_policy", nil)
-			actionsJson, _ := json.Marshal(statement.Actions)
-			arn := ""
-
-			// The ARN from the recommendation can contain "/*" on the end for an s3 bucket, to look this up in
-			// @TODO probably need to verify whether we could get specific things here(as in specific objects in a bucket)
-
-			splitArn := statement.Resources[0].SplitArn()
-			awsResource, resourceTerraformFilePath, parentModuleAddress, err := stateFile.FindResourceInStateFileByArn(splitArn[0])
-			root, _ := fh.OpenFile("./main.tf", false)
-			if err == nil {
-				/*
-					THE BELOW SCENARIOS ONLY SUPPORT A FLAT PROJECT STRUCTURE WHERE THERE IS ONLY 1 LEVEL OF MODULE ABSTRACTION
-
-					MAIN.TF
-						->MODULES
-							->EC2
-								MAIN.TF
-
-				*/
-				if awsResource.Address == iamRoleStateFileResource.Address {
-					// both in same file
-					// standard method
-					arn = awsResource.Address + ".arn"
-					// if there is a specific resource then join it to the resource arn
-					if len(splitArn) > 1 && splitArn[1] != "*" {
-						// This adds a join statement to the terraform so that we refer to the correct bucket arn but add the specific resource correctly if it was specified in the finding
-						// https://www.terraform.io/docs/language/functions/join.html
-						arn = fmt.Sprintf(`join("/", [%s,"%s"])`, arn, strings.Join(splitArn[1:], "/"))
-					}
-
-				} else if !awsResource.IsInRoot() && !iamRoleStateFileResource.IsInRoot() {
-					// resources are in different files
-					// create and output for the resource
-					// create a variable for the role module
-					//do the plumbing
-					outputsFilePath := filepath.Join(filepath.Dir(resourceTerraformFilePath), "outputs.tf")
-					outputsFile, err := fh.OpenFile(outputsFilePath, true)
-					if err != nil {
-						fmt.Println(err)
-					}
-
-					outputName := addOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
-
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
-					resourcePathInRootModule := ""
-					if moduleDefinitionInRoot != nil {
-
-						resourcePathInRootModule = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
-					}
-
-					// resource is in root, role is in another file
-					// create variable for role module
-					// add variable value in root module declaration
-
-					// add variable for a resource
-					variableFilePath := filepath.Join(filepath.Dir(filePath), "variables.tf")
-					variablesFile, err := fh.OpenFile(variableFilePath, true)
-					if err != nil {
-						fmt.Println(err)
-					}
-
-					variableName := addVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
-
-					moduleDefinitionInRoot = FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
-					if moduleDefinitionInRoot != nil {
-						addInputToModuleDeclaration(moduleDefinitionInRoot, variableName, resourcePathInRootModule)
-						arn = "var." + variableName
-					}
-
-				} else if !awsResource.IsInRoot() && iamRoleStateFileResource.IsInRoot() {
-
-					// role is in root,  resource is in another file
-					// create an output from the resource definition
-					// refer to it in the root inline policy
-
-					outputsFilePath := filepath.Join(filepath.Dir(resourceTerraformFilePath), "outputs.tf")
-					outputsFile, err := fh.OpenFile(outputsFilePath, true)
-					if err != nil {
-						fmt.Println(err)
-					}
-					outputName := addOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
-
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
-					if moduleDefinitionInRoot != nil {
-
-						arn = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
-					}
-
-				} else if awsResource.IsInRoot() && !iamRoleStateFileResource.IsInRoot() {
-					// resource is in root, role is in another file
-					// create variable for role module
-					// add variable value in root module declaration
-
-					// add variable for a resource
-					variableFilePath := filepath.Join(filepath.Dir(filePath), "variables.tf")
-					variablesFile, err := fh.OpenFile(variableFilePath, true)
-					if err != nil {
-						fmt.Println(err)
-					}
-					variableName := addVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
-
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
-					if moduleDefinitionInRoot != nil {
-						addInputToModuleDeclaration(moduleDefinitionInRoot, variableName, awsResource.Address+".arn")
-						arn = "var." + variableName
-					}
-				}
-
-			} else {
-				// add quotes around it to make it valid for our use, maybe a json stringify equivalent would be good here to add the quotes robustly
-				arn = fmt.Sprintf(`"%s"`, *statement.Resources[0].ARN)
-				fmt.Printf("Failed to find matching resource in state file for ARN(%s) in (%s) using ARN reference directly\n", arn, stateFile)
-			}
-
-			setInlinePolicyIamPolicy(newBlock, string(actionsJson), arn, "iamzero-generated-iam-policy-"+fmt.Sprint(i))
-			newInlinePolicies = append(newInlinePolicies, newBlock)
-		}
-	}
-	// some logic probably works out whether all existing policies need to go
-	for _, blockToRemove := range existingInlinePoliciesToRemove {
-		awsIamBlock.Body().RemoveBlock(blockToRemove)
-	}
-	// add the new blocks(inline policies) to this role
-	for _, blockToAdd := range newInlinePolicies {
-		awsIamBlock.Body().AppendBlock(blockToAdd)
-	}
-	return nil
-
 }
 
 func (s StateFile) FindResourceInStateFileByArn(arn string) (StateFileResource, string, string, error) {
@@ -569,16 +567,12 @@ func OpenAndParseHclFile(filePath string, createIfNotExist bool) (bool, *hclwrit
 }
 
 func ParseHclFileForAwsIamBlocks(hclfile *hclwrite.File) []*hclwrite.Block {
-
 	var blocks []*hclwrite.Block
-
 	for _, block := range hclfile.Body().Blocks() {
 		if block.Type() == "resource" && IsBlockAwsIamRole(block) {
 			blocks = append(blocks, block)
-
 		}
 	}
-
 	return blocks
 }
 
