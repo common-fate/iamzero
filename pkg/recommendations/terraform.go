@@ -536,6 +536,8 @@ func StringCompareAttributeValue(attribute *hclwrite.Attribute, compareTo string
 }
 
 func setInlinePolicyIamPolicy(block *hclwrite.Block, action string, resource string, name string) {
+	// @TODO if hclwrite add a simple way to write function values like this we may switch over,
+	// However for now it seems this is the simplest way to add a function block to HCL using the hclwite package
 	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(fmt.Sprintf(`jsonencode({
         Version = "2012-10-17"
         Statement = [
@@ -585,7 +587,7 @@ func ParseHclFileForAwsIamBlocks(hclfile *hclwrite.File) []*hclwrite.Block {
 }
 
 func IsBlockAwsIamRole(block *hclwrite.Block) bool {
-	return len(block.Labels()) > 0 && strings.Contains(block.Labels()[0], "aws_iam_role")
+	return len(block.Labels()) > 0 && block.Labels()[0] == "aws_iam_role"
 }
 func IsBlockInlinePolicy(block *hclwrite.Block) bool {
 	return block.Type() == "inline_policy"
