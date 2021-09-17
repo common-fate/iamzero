@@ -67,6 +67,12 @@ type StateFileAttribute struct {
 	Roles []string `json:"roles"`
 }
 
+type StateFileResourceBlock struct {
+	StateFileResource
+	FilePath      string
+	ParentAddress string
+}
+
 type PendingChanges struct {
 	FilePath    string
 	FileContent []byte
@@ -187,22 +193,22 @@ func (fh FileHandler) ApplyTerraformFinding(finding *TerraformFinding) ([]Pendin
 		return []PendingChanges{}, err
 	}
 
-	stateFileResource, terraformFilePath, _, err := stateFile.FindResourceInStateFileByArn(finding.Role)
+	iamRoleStateFileResource, err := stateFile.FindResourceInStateFileByArn(finding.Role)
 	if err != nil {
 		return []PendingChanges{}, err
 	}
-	hclFile, err := fh.OpenFile(terraformFilePath, false)
+	hclFile, err := fh.OpenFile(iamRoleStateFileResource.FilePath, false)
 	if err != nil {
 		return []PendingChanges{}, err
 	}
-	awsIamBlock := FindIamRoleBlockByModuleAddress(hclFile.Body().Blocks(), stateFileResource.Type+"."+stateFileResource.Name)
+	awsIamBlock := FindIamRoleBlockByModuleAddress(hclFile.Body().Blocks(), iamRoleStateFileResource.Type+"."+iamRoleStateFileResource.Name)
 
 	if awsIamBlock != nil {
 		// Remove any managed policy attachments for this role
-		fh.FindAndRemovePolicyAttachmentsForRole(&stateFile, stateFileResource)
+		fh.FindAndRemovePolicyAttachmentsForRole(&stateFile, iamRoleStateFileResource.StateFileResource)
 
 		// Apply the finding by appending inline policies to the role
-		fh.ApplyFindingToBlock(awsIamBlock, terraformFilePath, hclFile, finding, stateFileResource, &stateFile)
+		fh.ApplyFindingToBlock(awsIamBlock, iamRoleStateFileResource, hclFile, finding, &stateFile)
 		return fh.PendingChanges(), nil
 	}
 	// If we don't find the matching role, either something went wrong in our code, or the statefile doesn't match the source code.
@@ -210,7 +216,7 @@ func (fh FileHandler) ApplyTerraformFinding(finding *TerraformFinding) ([]Pendin
 	return []PendingChanges{}, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
 
 }
-func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath string, hclFile *hclwrite.File, finding *TerraformFinding, iamRoleStateFileResource StateFileResource, stateFile *StateFile) error {
+func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleStateFileResource StateFileResourceBlock, hclFile *hclwrite.File, finding *TerraformFinding, stateFile *StateFile) error {
 	newInlinePolicies := []*hclwrite.Block{}
 	existingInlinePoliciesToRemove := []*hclwrite.Block{}
 	for _, nestedBlock := range awsIamBlock.Body().Blocks() {
@@ -229,7 +235,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 			// @TODO probably need to verify whether we could get specific things here(as in specific objects in a bucket)
 
 			splitArn := statement.Resources[0].SplitArn()
-			awsResource, resourceTerraformFilePath, parentModuleAddress, err := stateFile.FindResourceInStateFileByArn(splitArn[0])
+			awsResource, err := stateFile.FindResourceInStateFileByArn(splitArn[0])
 			root, _ := fh.OpenFile(ROOT_TERRAFORM_FILE, false)
 			if err == nil {
 				/*
@@ -257,15 +263,15 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					// create and output for the resource
 					// create a variable for the role module
 					//do the plumbing
-					outputsFilePath := filepath.Join(filepath.Dir(resourceTerraformFilePath), "outputs.tf")
+					outputsFilePath := filepath.Join(filepath.Dir(awsResource.FilePath), "outputs.tf")
 					outputsFile, err := fh.OpenFile(outputsFilePath, true)
 					if err != nil {
 						fmt.Println(err)
 					}
 
-					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, awsResource.ParentAddress+".")+".arn")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), awsResource.FilePath)
 					resourcePathInRootModule := ""
 					if moduleDefinitionInRoot != nil {
 
@@ -277,7 +283,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					// add variable value in root module declaration
 
 					// add variable for a resource
-					variableFilePath := filepath.Join(filepath.Dir(filePath), "variables.tf")
+					variableFilePath := filepath.Join(filepath.Dir(iamRoleStateFileResource.FilePath), "variables.tf")
 					variablesFile, err := fh.OpenFile(variableFilePath, true)
 					if err != nil {
 						fmt.Println(err)
@@ -285,7 +291,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 
 					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
-					moduleDefinitionInRoot = FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
+					moduleDefinitionInRoot = FindModuleBlockBySourcePath(root.Body().Blocks(), iamRoleStateFileResource.FilePath)
 					if moduleDefinitionInRoot != nil {
 						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, resourcePathInRootModule)
 						arn = "var." + variableName
@@ -297,14 +303,14 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					// create an output from the resource definition
 					// refer to it in the root inline policy
 
-					outputsFilePath := filepath.Join(filepath.Dir(resourceTerraformFilePath), "outputs.tf")
+					outputsFilePath := filepath.Join(filepath.Dir(awsResource.FilePath), "outputs.tf")
 					outputsFile, err := fh.OpenFile(outputsFilePath, true)
 					if err != nil {
 						fmt.Println(err)
 					}
-					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, awsResource.ParentAddress+".")+".arn")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), awsResource.FilePath)
 					if moduleDefinitionInRoot != nil {
 
 						arn = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
@@ -316,14 +322,14 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					// add variable value in root module declaration
 
 					// add variable for a resource
-					variableFilePath := filepath.Join(filepath.Dir(filePath), "variables.tf")
+					variableFilePath := filepath.Join(filepath.Dir(iamRoleStateFileResource.FilePath), "variables.tf")
 					variablesFile, err := fh.OpenFile(variableFilePath, true)
 					if err != nil {
 						fmt.Println(err)
 					}
 					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), iamRoleStateFileResource.FilePath)
 					if moduleDefinitionInRoot != nil {
 						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, awsResource.Address+".arn")
 						arn = "var." + variableName
@@ -435,12 +441,12 @@ func (tr TerraformResource) SplitArn() []string {
 	return strings.Split(*tr.ARN, "/")
 }
 
-func (s StateFile) FindResourceInStateFileByArn(arn string) (StateFileResource, string, string, error) {
+func (s StateFile) FindResourceInStateFileByArn(arn string) (StateFileResourceBlock, error) {
 	return s.FindResourceInStateFileBase(arn, func(s StateFileResource) string {
 		return s.Values.Arn
 	})
 }
-func (s StateFile) FindResourceInStateFileByName(name string) (StateFileResource, string, string, error) {
+func (s StateFile) FindResourceInStateFileByName(name string) (StateFileResourceBlock, error) {
 	return s.FindResourceInStateFileBase(name, func(s StateFileResource) string {
 		return s.Values.Name
 	})
@@ -480,14 +486,14 @@ func (s StateFile) FindPolicyAttachmentsInStateFileByRoleName(name string) map[s
 	return matches
 }
 
-func (s StateFile) FindResourceInStateFileBase(value string, attributefn func(s StateFileResource) string) (StateFileResource, string, string, error) {
+func (s StateFile) FindResourceInStateFileBase(value string, attributefn func(s StateFileResource) string) (StateFileResourceBlock, error) {
 	/*
 		I added this to allow matching of any of the properties of the resource by passing in a function to select the attribute
 	*/
 	terraformFilePath := ROOT_TERRAFORM_FILE
 	for _, r := range s.Values.RootModule.Resources {
 		if attributefn(r) == value {
-			return r, terraformFilePath, ".", nil
+			return StateFileResourceBlock{r, terraformFilePath, "."}, nil
 		}
 	}
 	for _, module := range s.Values.RootModule.ChildModules {
@@ -495,12 +501,12 @@ func (s StateFile) FindResourceInStateFileBase(value string, attributefn func(s 
 			if attributefn(r) == value {
 
 				terraformFilePath = filepath.Join("modules", filepath.Join(strings.Split(module.Address, ".")[1:]...), terraformFilePath)
-				return r, terraformFilePath, module.Address, nil
+				return StateFileResourceBlock{r, terraformFilePath, module.Address}, nil
 			}
 		}
 
 	}
-	return StateFileResource{}, "", "", fmt.Errorf("not found")
+	return StateFileResourceBlock{StateFileResource{}, "", ""}, fmt.Errorf("not found")
 }
 func parseTerraformState() (StateFile, error) {
 	// need to be in the root of the terraform repo for this to work
