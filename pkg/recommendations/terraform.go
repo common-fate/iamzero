@@ -108,16 +108,16 @@ func AddInputToModuleDeclaration(block *hclwrite.Block, variableName string, res
 	block.Body().SetAttributeTraversal(variableName, TraversalFromAddress(resourcePath))
 }
 
-func AddVariableBlockIfNotExist(body *hclwrite.Body, name string, description string) string {
+func AppendVariableBlockIfNotExist(body *hclwrite.Body, name string, description string) string {
 	block := FindBlockWithMatchingLabel(body.Blocks(), name)
 	if block != nil {
 		return name
 	}
-	AddVariableBlock(body, name, description)
+	AppendVariableBlock(body, name, description)
 	return name
 
 }
-func AddVariableBlock(body *hclwrite.Body, name string, description string) {
+func AppendVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("variable", []string{name})
 	newBlock.Body().SetAttributeValue("type", cty.StringVal("string"))
@@ -126,15 +126,15 @@ func AddVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 }
 
-func AddOutputBlockIfNotExist(body *hclwrite.Body, name string, description string, value string) string {
+func AppendOutputBlockIfNotExist(body *hclwrite.Body, name string, description string, value string) string {
 	block := FindBlockWithMatchingValueAttribute(body.Blocks(), value)
 	if block != nil {
 		return block.Labels()[0]
 	}
-	AddOutputBlock(body, name, description, value)
+	AppendOutputBlock(body, name, description, value)
 	return name
 }
-func AddOutputBlock(body *hclwrite.Body, name string, description string, value string) {
+func AppendOutputBlock(body *hclwrite.Body, name string, description string, value string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("output", []string{name})
 	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(value)}
@@ -158,14 +158,14 @@ func (fh FileHandler) OpenFile(path string, createIfNotExist bool) (*hclwrite.Fi
 	return fh.HclFiles[path], nil
 
 }
-func (fh FileHandler) SeekAndDestroyPolicyAttachmentsForRole(stateFile *StateFile, stateFileRole StateFileResource) {
-	attachments := stateFile.findPolicyAttachmentsInStateFileByRoleName(stateFileRole.Values.Name)
+func (fh FileHandler) FindAndRemovePolicyAttachmentsForRole(stateFile *StateFile, stateFileRole StateFileResource) {
+	attachments := stateFile.FindPolicyAttachmentsInStateFileByRoleName(stateFileRole.Values.Name)
 	for key, element := range attachments {
 		// for each terraform file, update all the modules
 		hclFile, _ := fh.OpenFile(key, false)
 		for _, stateFileResource := range element {
 			policyAttachmentBlock := FindBlockByModuleAddress(hclFile.Body().Blocks(), stateFileResource.Type+"."+stateFileResource.Name)
-			removePolicyAttachmentRole(policyAttachmentBlock, stateFileRole)
+			RemovePolicyAttachmentRole(policyAttachmentBlock, stateFileRole)
 		}
 	}
 
@@ -199,7 +199,7 @@ func (fh FileHandler) ApplyTerraformFinding(finding *TerraformFinding) ([]Pendin
 
 	if awsIamBlock != nil {
 		// Remove any managed policy attachments for this role
-		fh.SeekAndDestroyPolicyAttachmentsForRole(&stateFile, stateFileResource)
+		fh.FindAndRemovePolicyAttachmentsForRole(&stateFile, stateFileResource)
 
 		// Apply the finding by appending inline policies to the role
 		fh.ApplyFindingToBlock(awsIamBlock, terraformFilePath, hclFile, finding, stateFileResource, &stateFile)
@@ -263,7 +263,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 						fmt.Println(err)
 					}
 
-					outputName := AddOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
 
 					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
 					resourcePathInRootModule := ""
@@ -283,7 +283,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 						fmt.Println(err)
 					}
 
-					variableName := AddVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
+					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
 					moduleDefinitionInRoot = FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
 					if moduleDefinitionInRoot != nil {
@@ -302,7 +302,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					if err != nil {
 						fmt.Println(err)
 					}
-					outputName := AddOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
+					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, parentModuleAddress+".")+".arn")
 
 					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), resourceTerraformFilePath)
 					if moduleDefinitionInRoot != nil {
@@ -321,7 +321,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 					if err != nil {
 						fmt.Println(err)
 					}
-					variableName := AddVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
+					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
 					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), filePath)
 					if moduleDefinitionInRoot != nil {
@@ -352,7 +352,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 
 }
 
-func removePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileResource) {
+func RemovePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileResource) {
 	line := string(block.Body().GetAttribute("roles").Expr().BuildTokens(hclwrite.Tokens{}).Bytes())
 	line = strings.Trim(line, " []")
 	roles := strings.Split(line, ",")
@@ -453,7 +453,7 @@ func sliceContains(slice []string, compareTo string) bool {
 	}
 	return false
 }
-func (s StateFile) findPolicyAttachmentsInStateFileByRoleName(name string) map[string][]StateFileResource {
+func (s StateFile) FindPolicyAttachmentsInStateFileByRoleName(name string) map[string][]StateFileResource {
 	terraformFilePath := ROOT_TERRAFORM_FILE
 	resourceType := "aws_iam_policy_attachment"
 	matches := make(map[string][]StateFileResource)
