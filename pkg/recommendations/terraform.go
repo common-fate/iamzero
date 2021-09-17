@@ -79,26 +79,36 @@ type AwsIamBlock struct {
 	*hclwrite.Block
 }
 
+var ROOT_TERRAFORM_FILE = "main.tf"
+
 func (sfr StateFileResource) IsInRoot() bool {
 	return strings.Split(sfr.Address, ".")[0] != "module"
 }
 
 func GenerateVariableName(resourceName string, propertyType string) string {
-	return strings.Join([]string{"iamzerovar", resourceName, propertyType}, "_")
+	return strings.Join([]string{"iamzero-variable", resourceName, propertyType}, "_")
 }
 
 func GenerateOutputName(resourceName string, propertyType string) string {
-	return strings.Join([]string{"iamzeroout", resourceName, propertyType}, "_")
+	return strings.Join([]string{"iamzero-output", resourceName, propertyType}, "_")
+}
+
+func TraversalFromAddress(address string) hcl.Traversal {
+	splitAddress := strings.Split(address, ".")
+	traversal := hcl.Traversal{
+		hcl.TraverseRoot{Name: splitAddress[0]},
+	}
+	for _, val := range splitAddress[1:] {
+		traversal = append(traversal, hcl.TraverseAttr{Name: val})
+	}
+	return traversal
 }
 
 func AddInputToModuleDeclaration(block *hclwrite.Block, variableName string, resourcePath string) {
-	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(resourcePath)}
-	toks := hclwrite.Tokens{&t}
-	block.Body().SetAttributeRaw(variableName, toks)
+	block.Body().SetAttributeTraversal(variableName, TraversalFromAddress(resourcePath))
 }
 
 func AddVariableBlockIfNotExist(body *hclwrite.Body, name string, description string) string {
-
 	block := FindBlockWithMatchingLabel(body.Blocks(), name)
 	if block != nil {
 		return name
@@ -220,7 +230,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, filePath str
 
 			splitArn := statement.Resources[0].SplitArn()
 			awsResource, resourceTerraformFilePath, parentModuleAddress, err := stateFile.FindResourceInStateFileByArn(splitArn[0])
-			root, _ := fh.OpenFile("./main.tf", false)
+			root, _ := fh.OpenFile(ROOT_TERRAFORM_FILE, false)
 			if err == nil {
 				/*
 					THE BELOW SCENARIOS ONLY SUPPORT A FLAT PROJECT STRUCTURE WHERE THERE IS ONLY 1 LEVEL OF MODULE ABSTRACTION
@@ -382,7 +392,6 @@ func FindModuleBlockBySourcePath(blocks []*hclwrite.Block, moduleFolderPath stri
 			if source != nil && filepath.Dir(strings.Trim(string(block.Body().GetAttribute("source").Expr().BuildTokens(nil).Bytes()), ` "`)) == filepath.Dir(moduleFolderPath) {
 				return block
 			}
-
 		}
 	}
 	return nil
@@ -393,7 +402,6 @@ func FindBlockByModuleAddress(blocks []*hclwrite.Block, moduleAddress string) *h
 		if resourceLabelToString(block.Labels()) == moduleAddress {
 			return block
 		}
-
 	}
 	return nil
 }
@@ -446,7 +454,7 @@ func sliceContains(slice []string, compareTo string) bool {
 	return false
 }
 func (s StateFile) findPolicyAttachmentsInStateFileByRoleName(name string) map[string][]StateFileResource {
-	terraformFilePath := "main.tf"
+	terraformFilePath := ROOT_TERRAFORM_FILE
 	resourceType := "aws_iam_policy_attachment"
 	matches := make(map[string][]StateFileResource)
 	for _, r := range s.Values.RootModule.Resources {
@@ -476,7 +484,7 @@ func (s StateFile) FindResourceInStateFileBase(value string, attributefn func(s 
 	/*
 		I added this to allow matching of any of the properties of the resource by passing in a function to select the attribute
 	*/
-	terraformFilePath := "main.tf"
+	terraformFilePath := ROOT_TERRAFORM_FILE
 	for _, r := range s.Values.RootModule.Resources {
 		if attributefn(r) == value {
 			return r, terraformFilePath, ".", nil
