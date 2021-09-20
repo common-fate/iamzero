@@ -109,13 +109,13 @@ func (t TerraformIAMPolicyApplier) Detect() bool {
 	return os.IsExist(errTf)
 }
 
-func (t TerraformIAMPolicyApplier) Plan() (applier.PendingChanges, error) {
+func (t TerraformIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
 	return t.FileHandler.PlanTerraformFinding(t.Finding)
 }
 
-func (t TerraformIAMPolicyApplier) Apply(changes applier.PendingChanges) error {
+func (t TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 	// Writes the changes to the files
-	for _, change := range changes {
+	for _, change := range *changes {
 		err := ioutil.WriteFile(change.Path, []byte(change.Contents), 0644)
 		if err != nil {
 			return err
@@ -127,7 +127,7 @@ func (t TerraformIAMPolicyApplier) Apply(changes applier.PendingChanges) error {
 func (t TerraformIAMPolicyApplier) getRootFilePath() string {
 	return path.Join(t.ProjectPath, ROOT_TERRAFORM_FILE)
 }
-func (t *TerraformIAMPolicyApplier) calculateTerraformFinding() {
+func (t TerraformIAMPolicyApplier) calculateTerraformFinding() {
 
 	terraformFinding := TerraformFinding{
 		FindingID: t.Policy.ID,
@@ -277,7 +277,7 @@ func (fh FileHandler) FindAndRemovePolicyAttachmentsForRole(stateFile *StateFile
 	}
 
 }
-func (fh FileHandler) PendingChanges() applier.PendingChanges {
+func (fh FileHandler) PendingChanges() *applier.PendingChanges {
 	/*
 		return the formatted bytes for each open file
 	*/
@@ -285,22 +285,22 @@ func (fh FileHandler) PendingChanges() applier.PendingChanges {
 	for key, val := range fh.HclFiles {
 		pc = append(pc, applier.PendingChange{Path: key, Contents: string(hclwrite.Format(val.Bytes()))})
 	}
-	return pc
+	return &pc
 }
-func (fh FileHandler) PlanTerraformFinding(finding *TerraformFinding) (applier.PendingChanges, error) {
+func (fh FileHandler) PlanTerraformFinding(finding *TerraformFinding) (*applier.PendingChanges, error) {
 	stateFile, err := parseTerraformState()
 
 	if err != nil {
-		return applier.PendingChanges{}, err
+		return &applier.PendingChanges{}, err
 	}
 
 	iamRoleStateFileResource, err := stateFile.FindResourceInStateFileByArn(finding.Role)
 	if err != nil {
-		return applier.PendingChanges{}, err
+		return &applier.PendingChanges{}, err
 	}
 	hclFile, err := fh.OpenFile(iamRoleStateFileResource.FilePath, false)
 	if err != nil {
-		return applier.PendingChanges{}, err
+		return &applier.PendingChanges{}, err
 	}
 	awsIamBlock := FindIamRoleBlockByModuleAddress(hclFile.Body().Blocks(), iamRoleStateFileResource.Type+"."+iamRoleStateFileResource.Name)
 
@@ -314,7 +314,7 @@ func (fh FileHandler) PlanTerraformFinding(finding *TerraformFinding) (applier.P
 	}
 	// If we don't find the matching role, either something went wrong in our code, or the statefile doesn't match the source code.
 	// the user probably needs to run `terraform plan` again
-	return applier.PendingChanges{}, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
+	return &applier.PendingChanges{}, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
 
 }
 func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleStateFileResource StateFileResourceBlock, hclFile *hclwrite.File, finding *TerraformFinding, stateFile *StateFile) error {

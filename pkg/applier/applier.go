@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/common-fate/iamzero/pkg/recommendations"
+	"go.uber.org/zap"
 )
 
 // ApplierOutput is the output from the iamzero-applier command
@@ -20,8 +21,8 @@ type PendingChange struct {
 type PolicyApplier interface {
 	Init() error
 	Detect() bool
-	Plan() (PendingChanges, error)
-	Apply(PendingChanges) error
+	Plan() (*PendingChanges, error)
+	Apply(*PendingChanges) error
 	GetProjectName() string
 }
 
@@ -30,6 +31,7 @@ type AWSIAMPolicyApplier struct {
 	Policy      recommendations.Policy
 	Actions     []recommendations.AWSAction
 	ProjectPath string
+	Logger      *zap.SugaredLogger
 }
 
 func (changes PendingChanges) RenderDiff() error {
