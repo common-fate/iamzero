@@ -15,9 +15,8 @@ import (
 	"strings"
 
 	"github.com/common-fate/iamzero/pkg/applier"
-	"github.com/common-fate/iamzero/pkg/recommendations"
+	terraformApplier "github.com/common-fate/iamzero/pkg/applier/terraform"
 	"github.com/common-fate/iamzero/pkg/storage"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -35,7 +34,7 @@ type ApplyCommand struct {
 	skipSynth         bool
 }
 
-func askForConfirmation() bool {
+func promptForConfirmation() bool {
 	var response string
 
 	_, err := fmt.Scanln(&response)
@@ -50,7 +49,7 @@ func askForConfirmation() bool {
 		return false
 	default:
 		fmt.Println("Your input doesn't match what we expected, please type (y)es or (n)o and then press enter: ")
-		return askForConfirmation()
+		return promptForConfirmation()
 	}
 }
 
@@ -126,8 +125,9 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 	}
 
 	policyStorage := storage.NewBoltPolicyStorage(db)
-
+	actionStorage := storage.NewBoltActionStorage(db)
 	findings, err := policyStorage.ListForStatus("active")
+
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 					return err
 				}
 
-				var out applier.ApplierOutput
+				var out applier.PendingChanges
 
 				err = json.Unmarshal(stdout, &out)
 				if err != nil {
@@ -191,7 +191,7 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 				}
 				fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
 
-				confim := askForConfirmation()
+				confim := promptForConfirmation()
 
 				if confim {
 					for _, o := range out {
@@ -204,44 +204,62 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 			}
 		}
 	} else if errTf == nil {
-		fmt.Printf("We detected a Terraform project at %s\n", absPath)
-		for _, finding := range findings {
 
-			if finding.TerraformFinding != nil {
-				fmt.Println("Applying finding", finding.TerraformFinding.Role)
-				fh := recommendations.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
-				changes, err := fh.ApplyTerraformFinding(finding.TerraformFinding)
-				if err != nil {
-					return err
-				}
+		for _, policy := range findings {
+			// @TODO filter these by active or not
+			actions, err := actionStorage.ListForPolicy(policy.ID)
+			if err != nil {
+				return err
+			}
 
-				for _, change := range changes {
+			// Here we can instansiate all our appliers
+			appliers := applier.PolicyAppliers{
+				terraformApplier.TerraformIAMPolicyApplier{applier.AWSIAMPolicyApplier{
+					Policy: policy, Actions: actions, ProjectPath: projectPath},
+					nil, nil},
 
-					// Changes for change.FilePath may want to make this nicer
-					fmt.Printf("Changes for the following file (%s)", change.FilePath)
-					diff, err := applier.GetDiff(change.FilePath, string(change.FileContent), true)
+				// cdkApplier.CDKIAMPolicyApplier{applier.AWSIAMPolicyApplier{
+				// 	Policy: policy, Actions: actions},
+				// 	cdkApplier.CDKFinding{}},
+
+			}
+
+			for _, applier := range appliers {
+				applier.Init()
+				if applier.Detect() {
+					//Display some message about detecting project type
+
+					if err := renderProjectDetectedMessage(applier.GetProjectName(), ""); err != nil {
+						return err
+					}
+					plan, err := applier.Plan()
 					if err != nil {
 						return err
 					}
-					fmt.Println(diff)
-				}
-
-				fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
-
-				confim := askForConfirmation()
-
-				if confim {
-					for _, change := range changes {
-						err = ioutil.WriteFile(change.FilePath, change.FileContent, 0644)
-						if err != nil {
-							return err
-						}
+					//Add a RenderDiff method that uses the PendingChanges type
+					plan.RenderDiff()
+					if promptForChangeAcceptance() {
+						applier.Apply(plan)
 					}
-
 				}
 			}
 		}
+
 	}
 
 	return nil
+}
+
+func renderProjectDetectedMessage(name string, projectPath string) error {
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("We detected a %s project at %s\n", name, absPath)
+	return nil
+}
+
+func promptForChangeAcceptance() bool {
+	fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
+	return promptForConfirmation()
 }

@@ -1,4 +1,4 @@
-package recommendations
+package applier
 
 import (
 	"encoding/json"
@@ -6,9 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/common-fate/iamzero/pkg/applier"
+	"github.com/common-fate/iamzero/pkg/policies"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -73,10 +76,6 @@ type StateFileResourceBlock struct {
 	ParentAddress string
 }
 
-type PendingChanges struct {
-	FilePath    string
-	FileContent []byte
-}
 type FileHandler struct {
 	HclFiles map[string]*hclwrite.File
 }
@@ -85,7 +84,109 @@ type AwsIamBlock struct {
 	*hclwrite.Block
 }
 
+type TerraformIAMPolicyApplier struct {
+	applier.AWSIAMPolicyApplier
+	Finding     *TerraformFinding
+	FileHandler *FileHandler
+}
+
 var ROOT_TERRAFORM_FILE = "main.tf"
+
+func (t TerraformIAMPolicyApplier) GetProjectName() string { return "Terraform" }
+
+func (t TerraformIAMPolicyApplier) Init() error {
+	// Init File handler to manage reading and writing
+	t.FileHandler = &FileHandler{HclFiles: make(map[string]*hclwrite.File)}
+
+	// Generate Finding from the context
+	t.calculateTerraformFinding()
+
+	return nil
+}
+
+func (t TerraformIAMPolicyApplier) Detect() bool {
+	_, errTf := os.Stat(t.getRootFilePath())
+	return os.IsExist(errTf)
+}
+
+func (t TerraformIAMPolicyApplier) Plan() (applier.PendingChanges, error) {
+	return t.FileHandler.PlanTerraformFinding(t.Finding)
+}
+
+func (t TerraformIAMPolicyApplier) Apply(changes applier.PendingChanges) error {
+	// Writes the changes to the files
+	for _, change := range changes {
+		err := ioutil.WriteFile(change.Path, []byte(change.Contents), 0644)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t TerraformIAMPolicyApplier) getRootFilePath() string {
+	return path.Join(t.ProjectPath, ROOT_TERRAFORM_FILE)
+}
+func (t *TerraformIAMPolicyApplier) calculateTerraformFinding() {
+
+	terraformFinding := TerraformFinding{
+		FindingID: t.Policy.ID,
+		Role:      t.Policy.Identity.Role,
+
+		Recommendations: []TerraformRecommendation{
+			// {
+			// 	Type: "IAMInlinePolicy",
+			// 	Statements: []TerraformStatement{
+			// 		{
+			// 			Resources: []TerraformResource{
+			// 				{
+			// 					Reference: bucketArn,
+			// 					Type:      "AWS::S3::Bucket", ARN: &bucketArn,
+			// 				},
+			// 			},
+			// 			Actions: actionsDemo,
+			// 		},
+			// 	},
+			// },
+		},
+	}
+
+	// I copied this and modified it from the CDK example, it is subject to the same TODO comments as CDK above
+	for _, alert := range t.Actions {
+		if alert.Enabled && len(alert.Recommendations) > 0 {
+			rec := TerraformRecommendation{
+				Type:       "IAMInlinePolicy",
+				Statements: []TerraformStatement{},
+			}
+			advisory := alert.GetSelectedAdvisory()
+			for _, description := range advisory.Details().Description {
+				policy, ok := description.Policy.(policies.AWSIAMPolicy)
+				if ok {
+					for _, s := range policy.Statement {
+						terraformStatement := TerraformStatement{
+							Actions: s.Action,
+						}
+						for _, resource := range alert.Resources {
+
+							var terraformResource TerraformResource
+							if resource.CDKResource == nil {
+
+								terraformResource = TerraformResource{
+									Reference: "IAM",
+									ARN:       &resource.ARN,
+								}
+							}
+							terraformStatement.Resources = append(terraformStatement.Resources, terraformResource)
+						}
+						rec.Statements = append(rec.Statements, terraformStatement)
+					}
+				}
+			}
+			terraformFinding.Recommendations = append(terraformFinding.Recommendations, rec)
+		}
+	}
+	t.Finding = &terraformFinding
+}
 
 func (sfr StateFileResource) IsInRoot() bool {
 	return strings.Split(sfr.Address, ".")[0] != "module"
@@ -176,30 +277,30 @@ func (fh FileHandler) FindAndRemovePolicyAttachmentsForRole(stateFile *StateFile
 	}
 
 }
-func (fh FileHandler) PendingChanges() []PendingChanges {
+func (fh FileHandler) PendingChanges() applier.PendingChanges {
 	/*
 		return the formatted bytes for each open file
 	*/
-	pc := []PendingChanges{}
+	pc := applier.PendingChanges{}
 	for key, val := range fh.HclFiles {
-		pc = append(pc, PendingChanges{FilePath: key, FileContent: hclwrite.Format(val.Bytes())})
+		pc = append(pc, applier.PendingChange{Path: key, Contents: string(hclwrite.Format(val.Bytes()))})
 	}
 	return pc
 }
-func (fh FileHandler) ApplyTerraformFinding(finding *TerraformFinding) ([]PendingChanges, error) {
+func (fh FileHandler) PlanTerraformFinding(finding *TerraformFinding) (applier.PendingChanges, error) {
 	stateFile, err := parseTerraformState()
 
 	if err != nil {
-		return []PendingChanges{}, err
+		return applier.PendingChanges{}, err
 	}
 
 	iamRoleStateFileResource, err := stateFile.FindResourceInStateFileByArn(finding.Role)
 	if err != nil {
-		return []PendingChanges{}, err
+		return applier.PendingChanges{}, err
 	}
 	hclFile, err := fh.OpenFile(iamRoleStateFileResource.FilePath, false)
 	if err != nil {
-		return []PendingChanges{}, err
+		return applier.PendingChanges{}, err
 	}
 	awsIamBlock := FindIamRoleBlockByModuleAddress(hclFile.Body().Blocks(), iamRoleStateFileResource.Type+"."+iamRoleStateFileResource.Name)
 
@@ -213,7 +314,7 @@ func (fh FileHandler) ApplyTerraformFinding(finding *TerraformFinding) ([]Pendin
 	}
 	// If we don't find the matching role, either something went wrong in our code, or the statefile doesn't match the source code.
 	// the user probably needs to run `terraform plan` again
-	return []PendingChanges{}, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
+	return applier.PendingChanges{}, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
 
 }
 func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleStateFileResource StateFileResourceBlock, hclFile *hclwrite.File, finding *TerraformFinding, stateFile *StateFile) error {

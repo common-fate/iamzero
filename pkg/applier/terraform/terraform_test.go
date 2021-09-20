@@ -1,9 +1,9 @@
-package recommendations_test
+package applier_test
 
 import (
 	"testing"
 
-	"github.com/common-fate/iamzero/pkg/recommendations"
+	terraformApplier "github.com/common-fate/iamzero/pkg/applier/terraform"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/stretchr/testify/assert"
@@ -187,8 +187,9 @@ func TestIsAwsIamRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.False(t, recommendations.IsBlockAwsIamRole(hclfile.Body().Blocks()[3]))
-	assert.True(t, recommendations.IsBlockAwsIamRole(hclfile.Body().Blocks()[4]))
+
+	assert.False(t, terraformApplier.IsBlockAwsIamRole(hclfile.Body().Blocks()[3]))
+	assert.True(t, terraformApplier.IsBlockAwsIamRole(hclfile.Body().Blocks()[4]))
 
 }
 
@@ -197,9 +198,9 @@ func TestIsInlinePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.False(t, recommendations.IsBlockInlinePolicy(hclfile.Body().Blocks()[3]))
+	assert.False(t, terraformApplier.IsBlockInlinePolicy(hclfile.Body().Blocks()[3]))
 	assert.Len(t, hclfile.Body().Blocks()[4].Body().Blocks(), 1)
-	assert.True(t, recommendations.IsBlockInlinePolicy(hclfile.Body().Blocks()[4].Body().Blocks()[0]))
+	assert.True(t, terraformApplier.IsBlockInlinePolicy(hclfile.Body().Blocks()[4].Body().Blocks()[0]))
 
 }
 func TestParseIamBlocks(t *testing.T) {
@@ -207,7 +208,7 @@ func TestParseIamBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	iamBlocks := recommendations.ParseHclFileForAwsIamBlocks(hclfile)
+	iamBlocks := terraformApplier.ParseHclFileForAwsIamBlocks(hclfile)
 	assert.Len(t, iamBlocks, 1)
 	assert.Equal(t, iamBlocks[0], hclfile.Body().Blocks()[4])
 
@@ -218,18 +219,18 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	iamRoleName := "iamzero-tf-overprivileged-role"
 	actionsDemo := []string{"s3:GetObject"}
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket/*"
-	finding := &recommendations.TerraformFinding{FindingID: "abcde", Role: iamRoleName, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	finding := &terraformApplier.TerraformFinding{FindingID: "abcde", Role: iamRoleName, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
 	hclfile, diag := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
 	if diag != nil {
 		t.Fatal(diag)
 	}
-	iamBlocks := recommendations.ParseHclFileForAwsIamBlocks(hclfile)
-	stateFile, _ := recommendations.MarshalStateFileToGo(terraformShow)
-	stateFileResource, _, _, _ := stateFile.FindResourceInStateFileByArn(finding.Role)
-	block := recommendations.AwsIamBlock{iamBlocks[0]}
-	fh := recommendations.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
-	fh.ApplyFindingToBlock(&block, "./", hclfile, finding, stateFileResource, &stateFile)
+	iamBlocks := terraformApplier.ParseHclFileForAwsIamBlocks(hclfile)
+	stateFile, _ := terraformApplier.MarshalStateFileToGo(terraformShow)
+	stateFileResource, _ := stateFile.FindResourceInStateFileByArn(finding.Role)
+	block := terraformApplier.AwsIamBlock{iamBlocks[0]}
+	fh := terraformApplier.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
+	fh.ApplyFindingToBlock(&block, stateFileResource, hclfile, finding, &stateFile)
 
 	assert.Equal(t, string(hclwrite.Format(snapshot)), string(hclwrite.Format(hclfile.Bytes())))
 
@@ -240,29 +241,29 @@ func TestStringCompareAttributeValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	at := hclfile.Body().Blocks()[4].Body().Attributes()["name"]
-	assert.True(t, recommendations.StringCompareAttributeValue(at, "local.name"))
+	assert.True(t, terraformApplier.StringCompareAttributeValue(at, "local.name"))
 	at = hclfile.Body().Blocks()[3].Body().Attributes()["role-name"]
-	assert.True(t, recommendations.StringCompareAttributeValue(at, "iamzero-tf-overprivileged-role"))
+	assert.True(t, terraformApplier.StringCompareAttributeValue(at, "iamzero-tf-overprivileged-role"))
 
 }
 
 func TestApplyFindingToBlocksWithSpecificBucketResource(t *testing.T) {
-	// tests that the applier correctly adds the join() function in to specify the resource
+	// tests that the terraformApplier correctly adds the join() function in to specify the resource
 	iamRoleName := "iamzero-tf-overprivileged-role"
 	actionsDemo := []string{"s3:GetObject"}
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket/README.md"
-	finding := &recommendations.TerraformFinding{FindingID: "abcde", Role: iamRoleName, Recommendations: []recommendations.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []recommendations.TerraformStatement{{Resources: []recommendations.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	finding := &terraformApplier.TerraformFinding{FindingID: "abcde", Role: iamRoleName, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
 	hclfile, err := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	iamBlocks := recommendations.ParseHclFileForAwsIamBlocks(hclfile)
-	stateFile, _ := recommendations.MarshalStateFileToGo(terraformShow)
-	stateFileResource, _, _, _ := stateFile.FindResourceInStateFileByArn(finding.Role)
-	block := recommendations.AwsIamBlock{iamBlocks[0]}
-	fh := recommendations.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
-	fh.ApplyFindingToBlock(&block, "./", hclfile, finding, stateFileResource, &stateFile)
+	iamBlocks := terraformApplier.ParseHclFileForAwsIamBlocks(hclfile)
+	stateFile, _ := terraformApplier.MarshalStateFileToGo(terraformShow)
+	stateFileResource, _ := stateFile.FindResourceInStateFileByArn(finding.Role)
+	block := terraformApplier.AwsIamBlock{iamBlocks[0]}
+	fh := terraformApplier.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
+	fh.ApplyFindingToBlock(&block, stateFileResource, hclfile, finding, &stateFile)
 
 	assert.Equal(t, string(hclwrite.Format(snapshotSpecificResource)), string(hclwrite.Format(hclfile.Bytes())))
 

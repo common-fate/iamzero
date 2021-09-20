@@ -210,8 +210,6 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 		policy.RecalculateCDKFinding(actions, c.log)
 	}
 
-	policy.RecalculateTerraformFinding(actions, c.log)
-
 	err = c.policyStorage.CreateOrUpdate(*policy)
 	if err != nil {
 		return nil, err
