@@ -11,6 +11,7 @@ import (
 
 	"github.com/common-fate/iamzero/pkg/applier"
 	"github.com/common-fate/iamzero/pkg/policies"
+	"github.com/common-fate/iamzero/pkg/recommendations"
 )
 
 // CDKFinding is proposed CDK source code changes recommended by IAM Zero
@@ -55,7 +56,6 @@ type CDKIAMPolicyApplier struct {
 func (t CDKIAMPolicyApplier) GetProjectName() string { return "CDK" }
 
 func (t CDKIAMPolicyApplier) Init() error {
-	t.calculateCDKFinding()
 
 	if !t.SkipSynth {
 		fmt.Println("Synthesizing the CDK project with 'cdk synth' so that we can analyse it (you can skip this step by passing the -skip-synth flag)...")
@@ -79,6 +79,11 @@ func (t CDKIAMPolicyApplier) Init() error {
 	return nil
 }
 
+func (t CDKIAMPolicyApplier) EvaluatePolicy(policy *recommendations.Policy, actions []recommendations.AWSAction) error {
+	t.calculateCDKFinding(policy, actions)
+	return nil
+}
+
 func (t CDKIAMPolicyApplier) Detect() bool {
 	_, errCdk := os.Stat(path.Join(t.ProjectPath, "cdk.json"))
 	return os.IsExist(errCdk)
@@ -90,7 +95,7 @@ func (t CDKIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
 		if err != nil {
 			return nil, err
 		}
-		t.Logger.With("finding", t.Policy.ID).Debug("applying finding")
+		t.Logger.With("finding", t.Finding.FindingID).Debug("applying finding")
 
 		cmd := exec.CommandContext(t.CTX, t.ApplierBinaryPath, "-f", string(findingStr), "-m", t.Manifest)
 		cmd.Stderr = os.Stderr
@@ -125,22 +130,22 @@ func (t CDKIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 	return nil
 }
 
-func (t CDKIAMPolicyApplier) calculateCDKFinding() {
+func (t CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 	// only derive a CDK finding if we know that the role that we are
 	// giving recommendations for has been defined using CDK
-	if t.Policy.Identity.CDKResource == nil {
+	if policy.Identity.CDKResource == nil {
 		return
 	}
 	f := CDKFinding{
-		FindingID: t.Policy.ID,
+		FindingID: policy.ID,
 		Role: CDKRole{
-			Type:    t.Policy.Identity.CDKResource.Type,
-			CDKPath: t.Policy.Identity.CDKResource.CDKPath,
+			Type:    policy.Identity.CDKResource.Type,
+			CDKPath: policy.Identity.CDKResource.CDKPath,
 		},
 		Recommendations: []CDKRecommendation{},
 	}
 
-	for _, alert := range t.Actions {
+	for _, alert := range actions {
 		if alert.Enabled && len(alert.Recommendations) > 0 {
 			rec := CDKRecommendation{
 				Type:       "IAMInlinePolicy",

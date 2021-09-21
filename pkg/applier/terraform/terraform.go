@@ -12,6 +12,7 @@ import (
 
 	"github.com/common-fate/iamzero/pkg/applier"
 	"github.com/common-fate/iamzero/pkg/policies"
+	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -93,14 +94,14 @@ type TerraformIAMPolicyApplier struct {
 var ROOT_TERRAFORM_FILE = "main.tf"
 
 func (t TerraformIAMPolicyApplier) GetProjectName() string { return "Terraform" }
-
+func (t TerraformIAMPolicyApplier) EvaluatePolicy(policy *recommendations.Policy, actions []recommendations.AWSAction) error {
+	// Generate Finding from the context
+	t.calculateTerraformFinding(policy, actions)
+	return nil
+}
 func (t TerraformIAMPolicyApplier) Init() error {
 	// Init File handler to manage reading and writing
 	t.FileHandler = &FileHandler{HclFiles: make(map[string]*hclwrite.File)}
-
-	// Generate Finding from the context
-	t.calculateTerraformFinding()
-
 	return nil
 }
 
@@ -127,11 +128,11 @@ func (t TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error 
 func (t TerraformIAMPolicyApplier) getRootFilePath() string {
 	return path.Join(t.ProjectPath, ROOT_TERRAFORM_FILE)
 }
-func (t TerraformIAMPolicyApplier) calculateTerraformFinding() {
+func (t TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 
 	terraformFinding := TerraformFinding{
-		FindingID: t.Policy.ID,
-		Role:      t.Policy.Identity.Role,
+		FindingID: policy.ID,
+		Role:      policy.Identity.Role,
 
 		Recommendations: []TerraformRecommendation{
 			// {
@@ -152,7 +153,7 @@ func (t TerraformIAMPolicyApplier) calculateTerraformFinding() {
 	}
 
 	// I copied this and modified it from the CDK example, it is subject to the same TODO comments as CDK above
-	for _, alert := range t.Actions {
+	for _, alert := range actions {
 		if alert.Enabled && len(alert.Recommendations) > 0 {
 			rec := TerraformRecommendation{
 				Type:       "IAMInlinePolicy",

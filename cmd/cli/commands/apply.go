@@ -12,6 +12,7 @@ import (
 	"github.com/common-fate/iamzero/pkg/applier"
 	cdkApplier "github.com/common-fate/iamzero/pkg/applier/cdk"
 	terraformApplier "github.com/common-fate/iamzero/pkg/applier/terraform"
+	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/common-fate/iamzero/pkg/storage"
 
 	"github.com/peterbourgon/ff/v3"
@@ -83,6 +84,19 @@ func renderProjectDetectedMessage(name string, projectPath string) error {
 	return nil
 }
 
+func fetchEnabledAcionsForPolicy(actionStorage *storage.BoltActionStorage, policyID string) ([]recommendations.AWSAction, error) {
+	actions, err := actionStorage.ListForPolicy(policyID)
+	if err != nil {
+		return nil, err
+	}
+	var enabledActions []recommendations.AWSAction
+	for _, a := range actions {
+		if a.Enabled {
+			enabledActions = append(enabledActions, a)
+		}
+	}
+	return enabledActions, nil
+}
 func promptForChangeAcceptance() bool {
 	fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
 	return promptForConfirmation()
@@ -126,39 +140,32 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
-	// // if the directory contains a `cdk.json` file, it's a CDK project
-	// _, errCdk := os.Stat(path.Join(projectPath, "cdk.json"))
-	// // if the directory contains a `main.tf` file, it's a Terraform project
-	// _, errTf := os.Stat(path.Join(projectPath, "main.tf"))
+	// Here we can instansiate all our appliers
+	appliers := applier.PolicyAppliers{
+		terraformApplier.TerraformIAMPolicyApplier{applier.AWSIAMPolicyApplier{
+			ProjectPath: projectPath, Logger: log},
+			nil, nil},
+		cdkApplier.CDKIAMPolicyApplier{applier.AWSIAMPolicyApplier{
+			ProjectPath: projectPath, Logger: log},
+			nil, c.skipSynth, ctx, c.applierBinaryPath, ""},
+	}
+	// if the directory contains a `cdk.json` file, it's a CDK project
+	// if the directory contains a `main.tf` file, it's a Terraform project
+	projectDetected := false
+	for _, applier := range appliers {
+		applier.Init()
 
-	// if (os.IsExist(errCdk) || os.IsExist(errTf)) && !(os.IsExist(errCdk) && os.IsExist(errTf)) {
-	// 	return fmt.Errorf("we couldn't find a CDK project or a Terraform Project at %s. Please ensure that you are providing a path to a CDK project (which should contain a 'cdk.json' file) or a Terraform project (which should contain a 'main.tf' file)", projectPath)
-	// } else if errTf != nil {
-	// 	return fmt.Errorf("something went wrong (%s)\n(%s)", errCdk, errTf)
-	// }
+		if applier.Detect() {
+			projectDetected = true
+			for _, policy := range findings {
+				actions, err := fetchEnabledAcionsForPolicy(actionStorage, policy.ID)
+				if err != nil {
+					return err
+				}
 
-	for _, policy := range findings {
-		// @TODO filter these by active or not
-		actions, err := actionStorage.ListForPolicy(policy.ID)
-		if err != nil {
-			return err
-		}
-
-		// Here we can instansiate all our appliers
-		appliers := applier.PolicyAppliers{
-			terraformApplier.TerraformIAMPolicyApplier{applier.AWSIAMPolicyApplier{
-				Policy: policy, Actions: actions, ProjectPath: projectPath, Logger: log},
-				nil, nil},
-			cdkApplier.CDKIAMPolicyApplier{applier.AWSIAMPolicyApplier{
-				Policy: policy, Actions: actions, ProjectPath: projectPath, Logger: log},
-				nil, c.skipSynth, ctx, c.applierBinaryPath, ""},
-		}
-
-		for _, applier := range appliers {
-			applier.Init()
-			if applier.Detect() {
-				//Display some message about detecting project type
-
+				// This step processes the stored policy and actions to load the applier
+				// each policy represents a different role
+				applier.EvaluatePolicy(&policy, actions)
 				if err := renderProjectDetectedMessage(applier.GetProjectName(), ""); err != nil {
 					return err
 				}
@@ -174,6 +181,9 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 				}
 			}
 		}
+	}
+	if !projectDetected {
+		return fmt.Errorf("we couldn't find a CDK project or a Terraform Project at %s. Please ensure that you are providing a path to a CDK project (which should contain a 'cdk.json' file) or a Terraform project (which should contain a 'main.tf' file)", projectPath)
 	}
 
 	return nil

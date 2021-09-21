@@ -24,12 +24,13 @@ type PolicyApplier interface {
 	Plan() (*PendingChanges, error)
 	Apply(*PendingChanges) error
 	GetProjectName() string
+	EvaluatePolicy(*recommendations.Policy, []recommendations.AWSAction) error
 }
 
 type PolicyAppliers []PolicyApplier
 type AWSIAMPolicyApplier struct {
-	Policy      recommendations.Policy
-	Actions     []recommendations.AWSAction
+	// Policy      recommendations.Policy
+	// Actions     []recommendations.AWSAction
 	ProjectPath string
 	Logger      *zap.SugaredLogger
 }
