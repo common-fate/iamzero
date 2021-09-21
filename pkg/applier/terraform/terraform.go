@@ -89,29 +89,37 @@ type TerraformIAMPolicyApplier struct {
 	applier.AWSIAMPolicyApplier
 	Finding     *TerraformFinding
 	FileHandler *FileHandler
+	StateFile   *StateFile
 }
 
 var ROOT_TERRAFORM_FILE = "main.tf"
 
-func (t TerraformIAMPolicyApplier) GetProjectName() string { return "Terraform" }
+func (t *TerraformIAMPolicyApplier) GetProjectName() string { return "Terraform" }
 
-func (t TerraformIAMPolicyApplier) Init() error {
+func (t *TerraformIAMPolicyApplier) Init() error {
 	// Init File handler to manage reading and writing
 	t.FileHandler = &FileHandler{HclFiles: make(map[string]*hclwrite.File)}
+
+	// load the statefile
+	stateFile, err := parseTerraformState()
+	if err != nil {
+		return err
+	}
+	t.StateFile = &stateFile
 	return nil
 }
 
-func (t TerraformIAMPolicyApplier) Detect() bool {
-	_, errTf := os.Stat(t.getRootFilePath())
-	return os.IsExist(errTf)
+func (t *TerraformIAMPolicyApplier) Detect() bool {
+	_, err := os.Stat(t.getRootFilePath())
+	return err == nil
 }
 
-func (t TerraformIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []recommendations.AWSAction) (*applier.PendingChanges, error) {
+func (t *TerraformIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []recommendations.AWSAction) (*applier.PendingChanges, error) {
 	t.calculateTerraformFinding(policy, actions)
-	return t.FileHandler.PlanTerraformFinding(t.Finding)
+	return t.PlanTerraformFinding()
 }
 
-func (t TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
+func (t *TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 	// Writes the changes to the files
 	for _, change := range *changes {
 		err := ioutil.WriteFile(change.Path, []byte(change.Contents), 0644)
@@ -122,10 +130,10 @@ func (t TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error 
 	return nil
 }
 
-func (t TerraformIAMPolicyApplier) getRootFilePath() string {
+func (t *TerraformIAMPolicyApplier) getRootFilePath() string {
 	return path.Join(t.ProjectPath, ROOT_TERRAFORM_FILE)
 }
-func (t TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
+func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 
 	terraformFinding := TerraformFinding{
 		FindingID: policy.ID,
@@ -263,11 +271,11 @@ func (fh FileHandler) OpenFile(path string, createIfNotExist bool) (*hclwrite.Fi
 	return fh.HclFiles[path], nil
 
 }
-func (fh FileHandler) FindAndRemovePolicyAttachmentsForRole(stateFile *StateFile, stateFileRole StateFileResource) {
-	attachments := stateFile.FindPolicyAttachmentsInStateFileByRoleName(stateFileRole.Values.Name)
+func (t *TerraformIAMPolicyApplier) FindAndRemovePolicyAttachmentsForRole(stateFileRole StateFileResource) {
+	attachments := t.FindPolicyAttachmentsInStateFileByRoleName(stateFileRole.Values.Name)
 	for key, element := range attachments {
 		// for each terraform file, update all the modules
-		hclFile, _ := fh.OpenFile(key, false)
+		hclFile, _ := t.FileHandler.OpenFile(key, false)
 		for _, stateFileResource := range element {
 			policyAttachmentBlock := FindBlockByModuleAddress(hclFile.Body().Blocks(), stateFileResource.Type+"."+stateFileResource.Name)
 			RemovePolicyAttachmentRole(policyAttachmentBlock, stateFileRole)
@@ -275,28 +283,23 @@ func (fh FileHandler) FindAndRemovePolicyAttachmentsForRole(stateFile *StateFile
 	}
 
 }
-func (fh FileHandler) PendingChanges() *applier.PendingChanges {
+func (t *TerraformIAMPolicyApplier) PendingChanges() *applier.PendingChanges {
 	/*
 		return the formatted bytes for each open file
 	*/
 	pc := applier.PendingChanges{}
-	for key, val := range fh.HclFiles {
+	for key, val := range t.FileHandler.HclFiles {
 		pc = append(pc, applier.PendingChange{Path: key, Contents: string(hclwrite.Format(val.Bytes()))})
 	}
 	return &pc
 }
-func (fh FileHandler) PlanTerraformFinding(finding *TerraformFinding) (*applier.PendingChanges, error) {
-	stateFile, err := parseTerraformState()
-
+func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChanges, error) {
+	fmt.Println(t.Finding.Role)
+	iamRoleStateFileResource, err := t.FindResourceInStateFileByArn(t.Finding.Role)
 	if err != nil {
 		return &applier.PendingChanges{}, err
 	}
-
-	iamRoleStateFileResource, err := stateFile.FindResourceInStateFileByArn(finding.Role)
-	if err != nil {
-		return &applier.PendingChanges{}, err
-	}
-	hclFile, err := fh.OpenFile(iamRoleStateFileResource.FilePath, false)
+	hclFile, err := t.FileHandler.OpenFile(iamRoleStateFileResource.FilePath, false)
 	if err != nil {
 		return &applier.PendingChanges{}, err
 	}
@@ -304,18 +307,18 @@ func (fh FileHandler) PlanTerraformFinding(finding *TerraformFinding) (*applier.
 
 	if awsIamBlock != nil {
 		// Remove any managed policy attachments for this role
-		fh.FindAndRemovePolicyAttachmentsForRole(&stateFile, iamRoleStateFileResource.StateFileResource)
+		t.FindAndRemovePolicyAttachmentsForRole(iamRoleStateFileResource.StateFileResource)
 
 		// Apply the finding by appending inline policies to the role
-		fh.ApplyFindingToBlock(awsIamBlock, iamRoleStateFileResource, hclFile, finding, &stateFile)
-		return fh.PendingChanges(), nil
+		t.ApplyFindingToBlock(awsIamBlock, iamRoleStateFileResource, hclFile)
+		return t.PendingChanges(), nil
 	}
 	// If we don't find the matching role, either something went wrong in our code, or the statefile doesn't match the source code.
 	// the user probably needs to run `terraform plan` again
 	return &applier.PendingChanges{}, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
 
 }
-func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleStateFileResource StateFileResourceBlock, hclFile *hclwrite.File, finding *TerraformFinding, stateFile *StateFile) error {
+func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleStateFileResource StateFileResourceBlock, hclFile *hclwrite.File) error {
 	newInlinePolicies := []*hclwrite.Block{}
 	existingInlinePoliciesToRemove := []*hclwrite.Block{}
 	for _, nestedBlock := range awsIamBlock.Body().Blocks() {
@@ -324,7 +327,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleState
 		}
 	}
 
-	for _, reccomendation := range finding.Recommendations {
+	for _, reccomendation := range t.Finding.Recommendations {
 		for i, statement := range reccomendation.Statements {
 			newBlock := hclwrite.NewBlock("inline_policy", nil)
 			actionsJson, _ := json.Marshal(statement.Actions)
@@ -334,8 +337,8 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleState
 			// @TODO probably need to verify whether we could get specific things here(as in specific objects in a bucket)
 
 			splitArn := statement.Resources[0].SplitArn()
-			awsResource, err := stateFile.FindResourceInStateFileByArn(splitArn[0])
-			root, _ := fh.OpenFile(ROOT_TERRAFORM_FILE, false)
+			awsResource, err := t.FindResourceInStateFileByArn(splitArn[0])
+			root, _ := t.FileHandler.OpenFile(t.getRootFilePath(), false)
 			if err == nil {
 				/*
 					THE BELOW SCENARIOS ONLY SUPPORT A FLAT PROJECT STRUCTURE WHERE THERE IS ONLY 1 LEVEL OF MODULE ABSTRACTION
@@ -363,7 +366,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleState
 					// create a variable for the role module
 					//do the plumbing
 					outputsFilePath := filepath.Join(filepath.Dir(awsResource.FilePath), "outputs.tf")
-					outputsFile, err := fh.OpenFile(outputsFilePath, true)
+					outputsFile, err := t.FileHandler.OpenFile(outputsFilePath, true)
 					if err != nil {
 						fmt.Println(err)
 					}
@@ -383,7 +386,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleState
 
 					// add variable for a resource
 					variableFilePath := filepath.Join(filepath.Dir(iamRoleStateFileResource.FilePath), "variables.tf")
-					variablesFile, err := fh.OpenFile(variableFilePath, true)
+					variablesFile, err := t.FileHandler.OpenFile(variableFilePath, true)
 					if err != nil {
 						fmt.Println(err)
 					}
@@ -403,7 +406,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleState
 					// refer to it in the root inline policy
 
 					outputsFilePath := filepath.Join(filepath.Dir(awsResource.FilePath), "outputs.tf")
-					outputsFile, err := fh.OpenFile(outputsFilePath, true)
+					outputsFile, err := t.FileHandler.OpenFile(outputsFilePath, true)
 					if err != nil {
 						fmt.Println(err)
 					}
@@ -422,7 +425,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleState
 
 					// add variable for a resource
 					variableFilePath := filepath.Join(filepath.Dir(iamRoleStateFileResource.FilePath), "variables.tf")
-					variablesFile, err := fh.OpenFile(variableFilePath, true)
+					variablesFile, err := t.FileHandler.OpenFile(variableFilePath, true)
 					if err != nil {
 						fmt.Println(err)
 					}
@@ -438,7 +441,7 @@ func (fh FileHandler) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleState
 			} else {
 				// add quotes around it to make it valid for our use, maybe a json stringify equivalent would be good here to add the quotes robustly
 				arn = fmt.Sprintf(`"%s"`, *statement.Resources[0].ARN)
-				fmt.Printf("Failed to find matching resource in state file for ARN(%s) in (%s) using ARN reference directly\n", arn, stateFile)
+				t.Logger.Warnf("Failed to find matching resource in state file for ARN(%s) in (%s) using ARN reference directly\n", arn, t.StateFile)
 			}
 
 			setInlinePolicyIamPolicy(newBlock, string(actionsJson), arn, "iamzero-generated-iam-policy-"+fmt.Sprint(i))
@@ -540,13 +543,13 @@ func (tr TerraformResource) SplitArn() []string {
 	return strings.Split(*tr.ARN, "/")
 }
 
-func (s StateFile) FindResourceInStateFileByArn(arn string) (StateFileResourceBlock, error) {
-	return s.FindResourceInStateFileBase(arn, func(s StateFileResource) string {
+func (t *TerraformIAMPolicyApplier) FindResourceInStateFileByArn(arn string) (StateFileResourceBlock, error) {
+	return t.FindResourceInStateFileBase(arn, func(s StateFileResource) string {
 		return s.Values.Arn
 	})
 }
-func (s StateFile) FindResourceInStateFileByName(name string) (StateFileResourceBlock, error) {
-	return s.FindResourceInStateFileBase(name, func(s StateFileResource) string {
+func (t *TerraformIAMPolicyApplier) FindResourceInStateFileByName(name string) (StateFileResourceBlock, error) {
+	return t.FindResourceInStateFileBase(name, func(s StateFileResource) string {
 		return s.Values.Name
 	})
 }
@@ -558,11 +561,11 @@ func sliceContains(slice []string, compareTo string) bool {
 	}
 	return false
 }
-func (s StateFile) FindPolicyAttachmentsInStateFileByRoleName(name string) map[string][]StateFileResource {
-	terraformFilePath := ROOT_TERRAFORM_FILE
+func (t *TerraformIAMPolicyApplier) FindPolicyAttachmentsInStateFileByRoleName(name string) map[string][]StateFileResource {
+	terraformFilePath := t.getRootFilePath()
 	resourceType := "aws_iam_policy_attachment"
 	matches := make(map[string][]StateFileResource)
-	for _, r := range s.Values.RootModule.Resources {
+	for _, r := range t.StateFile.Values.RootModule.Resources {
 		if r.Type == resourceType && sliceContains(r.Values.Roles, name) {
 			if matches[terraformFilePath] == nil {
 				matches[terraformFilePath] = []StateFileResource{}
@@ -570,7 +573,7 @@ func (s StateFile) FindPolicyAttachmentsInStateFileByRoleName(name string) map[s
 			matches[terraformFilePath] = append(matches[terraformFilePath], r)
 		}
 	}
-	for _, module := range s.Values.RootModule.ChildModules {
+	for _, module := range t.StateFile.Values.RootModule.ChildModules {
 		for _, r := range module.Resources {
 			if r.Type == resourceType && sliceContains(r.Values.Roles, name) {
 				terraformFilePath = filepath.Join("modules", filepath.Join(strings.Split(module.Address, ".")[1:]...), terraformFilePath)
@@ -585,17 +588,17 @@ func (s StateFile) FindPolicyAttachmentsInStateFileByRoleName(name string) map[s
 	return matches
 }
 
-func (s StateFile) FindResourceInStateFileBase(value string, attributefn func(s StateFileResource) string) (StateFileResourceBlock, error) {
+func (t *TerraformIAMPolicyApplier) FindResourceInStateFileBase(value string, attributefn func(s StateFileResource) string) (StateFileResourceBlock, error) {
 	/*
 		I added this to allow matching of any of the properties of the resource by passing in a function to select the attribute
 	*/
-	terraformFilePath := ROOT_TERRAFORM_FILE
-	for _, r := range s.Values.RootModule.Resources {
+	terraformFilePath := t.getRootFilePath()
+	for _, r := range t.StateFile.Values.RootModule.Resources {
 		if attributefn(r) == value {
 			return StateFileResourceBlock{r, terraformFilePath, "."}, nil
 		}
 	}
-	for _, module := range s.Values.RootModule.ChildModules {
+	for _, module := range t.StateFile.Values.RootModule.ChildModules {
 		for _, r := range module.Resources {
 			if attributefn(r) == value {
 

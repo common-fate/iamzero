@@ -141,14 +141,15 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 	}
 
 	// Here we can instansiate all our appliers
-	appliers := applier.PolicyAppliers{
-		terraformApplier.TerraformIAMPolicyApplier{applier.AWSIAMPolicyApplier{
-			ProjectPath: projectPath, Logger: log},
-			nil, nil},
-		cdkApplier.CDKIAMPolicyApplier{applier.AWSIAMPolicyApplier{
-			ProjectPath: projectPath, Logger: log},
-			nil, c.skipSynth, ctx, c.applierBinaryPath, ""},
-	}
+	tf := terraformApplier.TerraformIAMPolicyApplier{applier.AWSIAMPolicyApplier{
+		ProjectPath: projectPath, Logger: log},
+		nil, nil, nil}
+	cdk := cdkApplier.CDKIAMPolicyApplier{applier.AWSIAMPolicyApplier{
+		ProjectPath: projectPath, Logger: log},
+		nil, c.skipSynth, ctx, c.applierBinaryPath, ""}
+
+	appliers := applier.PolicyAppliers{&tf, &cdk}
+
 	// if the directory contains a `cdk.json` file, it's a CDK project
 	// if the directory contains a `main.tf` file, it's a Terraform project
 	projectDetected := false
