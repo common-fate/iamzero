@@ -19,12 +19,16 @@ type PendingChange struct {
 }
 
 type PolicyApplier interface {
+	// This method will be called before running the plan or apply steps
 	Init() error
+	// The Detect function shoudl evaluate whether there is a project matching this applier at the project path
 	Detect() bool
-	Plan() (*PendingChanges, error)
+	// Plan will detect the changes required to apply a policy and return the results
+	Plan(*recommendations.Policy, []recommendations.AWSAction) (*PendingChanges, error)
+	// Apply will write the changes to the project files
 	Apply(*PendingChanges) error
+	// This should return a string descripting what type of project this applier operates on e.g "Terraform" or "CDK"
 	GetProjectName() string
-	EvaluatePolicy(*recommendations.Policy, []recommendations.AWSAction) error
 }
 
 type PolicyAppliers []PolicyApplier

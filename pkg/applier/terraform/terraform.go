@@ -94,11 +94,7 @@ type TerraformIAMPolicyApplier struct {
 var ROOT_TERRAFORM_FILE = "main.tf"
 
 func (t TerraformIAMPolicyApplier) GetProjectName() string { return "Terraform" }
-func (t TerraformIAMPolicyApplier) EvaluatePolicy(policy *recommendations.Policy, actions []recommendations.AWSAction) error {
-	// Generate Finding from the context
-	t.calculateTerraformFinding(policy, actions)
-	return nil
-}
+
 func (t TerraformIAMPolicyApplier) Init() error {
 	// Init File handler to manage reading and writing
 	t.FileHandler = &FileHandler{HclFiles: make(map[string]*hclwrite.File)}
@@ -110,7 +106,8 @@ func (t TerraformIAMPolicyApplier) Detect() bool {
 	return os.IsExist(errTf)
 }
 
-func (t TerraformIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
+func (t TerraformIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []recommendations.AWSAction) (*applier.PendingChanges, error) {
+	t.calculateTerraformFinding(policy, actions)
 	return t.FileHandler.PlanTerraformFinding(t.Finding)
 }
 

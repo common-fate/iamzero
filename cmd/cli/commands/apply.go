@@ -153,28 +153,22 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 	// if the directory contains a `main.tf` file, it's a Terraform project
 	projectDetected := false
 	for _, applier := range appliers {
-		applier.Init()
-
 		if applier.Detect() {
+			if err := renderProjectDetectedMessage(applier.GetProjectName(), ""); err != nil {
+				return err
+			}
+			applier.Init()
 			projectDetected = true
 			for _, policy := range findings {
 				actions, err := fetchEnabledAcionsForPolicy(actionStorage, policy.ID)
 				if err != nil {
 					return err
 				}
-
-				// This step processes the stored policy and actions to load the applier
-				// each policy represents a different role
-				applier.EvaluatePolicy(&policy, actions)
-				if err := renderProjectDetectedMessage(applier.GetProjectName(), ""); err != nil {
-					return err
-				}
-				plan, err := applier.Plan()
+				plan, err := applier.Plan(&policy, actions)
 				if err != nil {
 					return err
 				}
 				fmt.Printf("\n💡 We found a recommended change based on our least-privilege policy analysis:\n\n")
-				//Add a RenderDiff method that uses the PendingChanges type
 				plan.RenderDiff()
 				if promptForChangeAcceptance() {
 					applier.Apply(plan)

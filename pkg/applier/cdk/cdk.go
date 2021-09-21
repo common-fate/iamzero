@@ -79,17 +79,13 @@ func (t CDKIAMPolicyApplier) Init() error {
 	return nil
 }
 
-func (t CDKIAMPolicyApplier) EvaluatePolicy(policy *recommendations.Policy, actions []recommendations.AWSAction) error {
-	t.calculateCDKFinding(policy, actions)
-	return nil
-}
-
 func (t CDKIAMPolicyApplier) Detect() bool {
 	_, errCdk := os.Stat(path.Join(t.ProjectPath, "cdk.json"))
 	return os.IsExist(errCdk)
 }
 
-func (t CDKIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
+func (t CDKIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []recommendations.AWSAction) (*applier.PendingChanges, error) {
+	t.calculateCDKFinding(policy, actions)
 	if t.Finding != nil && t.Finding.Role.CDKPath != "" {
 		findingStr, err := json.Marshal(t.Finding)
 		if err != nil {
