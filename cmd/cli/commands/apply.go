@@ -140,13 +140,12 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
+	rootPolicyApplier := applier.AWSIAMPolicyApplier{
+		ProjectPath: projectPath, Logger: log}
 	// Here we can instansiate all our appliers
-	tf := terraformApplier.TerraformIAMPolicyApplier{applier.AWSIAMPolicyApplier{
-		ProjectPath: projectPath, Logger: log},
-		nil, nil, nil}
-	cdk := cdkApplier.CDKIAMPolicyApplier{applier.AWSIAMPolicyApplier{
-		ProjectPath: projectPath, Logger: log},
-		nil, c.skipSynth, ctx, c.applierBinaryPath, ""}
+	tf := terraformApplier.TerraformIAMPolicyApplier{AWSIAMPolicyApplier: rootPolicyApplier}
+	cdk := cdkApplier.CDKIAMPolicyApplier{AWSIAMPolicyApplier: rootPolicyApplier,
+		SkipSynth: c.skipSynth, CTX: ctx, ApplierBinaryPath: c.applierBinaryPath, Manifest: ""}
 
 	appliers := applier.PolicyAppliers{&tf, &cdk}
 

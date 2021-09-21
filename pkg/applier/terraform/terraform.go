@@ -86,10 +86,10 @@ type AwsIamBlock struct {
 }
 
 type TerraformIAMPolicyApplier struct {
-	applier.AWSIAMPolicyApplier
-	Finding     *TerraformFinding
-	FileHandler *FileHandler
-	StateFile   *StateFile
+	AWSIAMPolicyApplier applier.AWSIAMPolicyApplier
+	Finding             *TerraformFinding
+	FileHandler         *FileHandler
+	StateFile           *StateFile
 }
 
 var ROOT_TERRAFORM_FILE = "main.tf"
@@ -131,7 +131,7 @@ func (t *TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error
 }
 
 func (t *TerraformIAMPolicyApplier) getRootFilePath() string {
-	return path.Join(t.ProjectPath, ROOT_TERRAFORM_FILE)
+	return path.Join(t.AWSIAMPolicyApplier.ProjectPath, ROOT_TERRAFORM_FILE)
 }
 func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 
@@ -294,7 +294,6 @@ func (t *TerraformIAMPolicyApplier) PendingChanges() *applier.PendingChanges {
 	return &pc
 }
 func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChanges, error) {
-	fmt.Println(t.Finding.Role)
 	iamRoleStateFileResource, err := t.FindResourceInStateFileByArn(t.Finding.Role)
 	if err != nil {
 		return &applier.PendingChanges{}, err
@@ -338,7 +337,6 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 
 			splitArn := statement.Resources[0].SplitArn()
 			awsResource, err := t.FindResourceInStateFileByArn(splitArn[0])
-			root, _ := t.FileHandler.OpenFile(t.getRootFilePath(), false)
 			if err == nil {
 				/*
 					THE BELOW SCENARIOS ONLY SUPPORT A FLAT PROJECT STRUCTURE WHERE THERE IS ONLY 1 LEVEL OF MODULE ABSTRACTION
@@ -349,7 +347,7 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 								MAIN.TF
 
 				*/
-				if awsResource.Address == iamRoleStateFileResource.Address {
+				if awsResource.ParentAddress == iamRoleStateFileResource.ParentAddress {
 					// both in same file
 					// standard method
 					arn = awsResource.Address + ".arn"
@@ -368,12 +366,12 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 					outputsFilePath := filepath.Join(filepath.Dir(awsResource.FilePath), "outputs.tf")
 					outputsFile, err := t.FileHandler.OpenFile(outputsFilePath, true)
 					if err != nil {
-						fmt.Println(err)
+						return err
 					}
 
 					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, awsResource.ParentAddress+".")+".arn")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), awsResource.FilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(hclFile.Body().Blocks(), awsResource.FilePath)
 					resourcePathInRootModule := ""
 					if moduleDefinitionInRoot != nil {
 
@@ -388,12 +386,12 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 					variableFilePath := filepath.Join(filepath.Dir(iamRoleStateFileResource.FilePath), "variables.tf")
 					variablesFile, err := t.FileHandler.OpenFile(variableFilePath, true)
 					if err != nil {
-						fmt.Println(err)
+						return err
 					}
 
 					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
-					moduleDefinitionInRoot = FindModuleBlockBySourcePath(root.Body().Blocks(), iamRoleStateFileResource.FilePath)
+					moduleDefinitionInRoot = FindModuleBlockBySourcePath(hclFile.Body().Blocks(), iamRoleStateFileResource.FilePath)
 					if moduleDefinitionInRoot != nil {
 						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, resourcePathInRootModule)
 						arn = "var." + variableName
@@ -408,11 +406,11 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 					outputsFilePath := filepath.Join(filepath.Dir(awsResource.FilePath), "outputs.tf")
 					outputsFile, err := t.FileHandler.OpenFile(outputsFilePath, true)
 					if err != nil {
-						fmt.Println(err)
+						return err
 					}
 					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, awsResource.ParentAddress+".")+".arn")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), awsResource.FilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(hclFile.Body().Blocks(), awsResource.FilePath)
 					if moduleDefinitionInRoot != nil {
 
 						arn = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
@@ -427,21 +425,25 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 					variableFilePath := filepath.Join(filepath.Dir(iamRoleStateFileResource.FilePath), "variables.tf")
 					variablesFile, err := t.FileHandler.OpenFile(variableFilePath, true)
 					if err != nil {
-						fmt.Println(err)
+						return err
 					}
 					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(root.Body().Blocks(), iamRoleStateFileResource.FilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(hclFile.Body().Blocks(), iamRoleStateFileResource.FilePath)
 					if moduleDefinitionInRoot != nil {
 						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, awsResource.Address+".arn")
 						arn = "var." + variableName
 					}
+				} else {
+					// add quotes around it to make it valid for our use, maybe a json stringify equivalent would be good here to add the quotes robustly
+					arn = fmt.Sprintf(`"%s"`, *statement.Resources[0].ARN)
+					t.AWSIAMPolicyApplier.Logger.Warnf("Resource with ARN(%s) is declared more than 1 level into the project tree, this is not yet supported. Using ARN directly\n", arn, t.StateFile)
 				}
 
 			} else {
 				// add quotes around it to make it valid for our use, maybe a json stringify equivalent would be good here to add the quotes robustly
 				arn = fmt.Sprintf(`"%s"`, *statement.Resources[0].ARN)
-				t.Logger.Warnf("Failed to find matching resource in state file for ARN(%s) in (%s) using ARN reference directly\n", arn, t.StateFile)
+				t.AWSIAMPolicyApplier.Logger.Warnf("Failed to find matching resource in state file for ARN(%s) in (%s) using ARN reference directly\n", arn, t.StateFile)
 			}
 
 			setInlinePolicyIamPolicy(newBlock, string(actionsJson), arn, "iamzero-generated-iam-policy-"+fmt.Sprint(i))

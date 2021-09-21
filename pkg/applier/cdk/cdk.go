@@ -45,12 +45,12 @@ type CDKResource struct {
 }
 
 type CDKIAMPolicyApplier struct {
-	applier.AWSIAMPolicyApplier
-	Finding           *CDKFinding
-	SkipSynth         bool
-	CTX               context.Context
-	ApplierBinaryPath string
-	Manifest          string
+	AWSIAMPolicyApplier applier.AWSIAMPolicyApplier
+	Finding             *CDKFinding
+	SkipSynth           bool
+	CTX                 context.Context
+	ApplierBinaryPath   string
+	Manifest            string
 }
 
 func (t CDKIAMPolicyApplier) GetProjectName() string { return "CDK" }
@@ -61,7 +61,7 @@ func (t CDKIAMPolicyApplier) Init() error {
 		fmt.Println("Synthesizing the CDK project with 'cdk synth' so that we can analyse it (you can skip this step by passing the -skip-synth flag)...")
 
 		cmd := exec.CommandContext(t.CTX, "cdk", "synth")
-		cmd.Dir = t.ProjectPath
+		cmd.Dir = t.AWSIAMPolicyApplier.ProjectPath
 
 		cmd.Stderr = os.Stderr
 
@@ -73,14 +73,14 @@ func (t CDKIAMPolicyApplier) Init() error {
 
 	// After the stack is synthesized the manifest file will be available
 	// at {projectDir}/cdk.out/manifest.json
-	t.Manifest = path.Join(t.ProjectPath, "cdk.out", "manifest.json")
-	t.Logger.With("manifest", t.Manifest).Debug("Stack synthesized")
+	t.Manifest = path.Join(t.AWSIAMPolicyApplier.ProjectPath, "cdk.out", "manifest.json")
+	t.AWSIAMPolicyApplier.Logger.With("manifest", t.Manifest).Debug("Stack synthesized")
 
 	return nil
 }
 
 func (t CDKIAMPolicyApplier) Detect() bool {
-	_, errCdk := os.Stat(path.Join(t.ProjectPath, "cdk.json"))
+	_, errCdk := os.Stat(path.Join(t.AWSIAMPolicyApplier.ProjectPath, "cdk.json"))
 	return os.IsExist(errCdk)
 }
 
@@ -91,7 +91,7 @@ func (t CDKIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []reco
 		if err != nil {
 			return nil, err
 		}
-		t.Logger.With("finding", t.Finding.FindingID).Debug("applying finding")
+		t.AWSIAMPolicyApplier.Logger.With("finding", t.Finding.FindingID).Debug("applying finding")
 
 		cmd := exec.CommandContext(t.CTX, t.ApplierBinaryPath, "-f", string(findingStr), "-m", t.Manifest)
 		cmd.Stderr = os.Stderr
@@ -107,7 +107,7 @@ func (t CDKIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []reco
 		if err != nil {
 			return nil, err
 		}
-		t.Logger.With("out", out).Debug("parsed applier output")
+		t.AWSIAMPolicyApplier.Logger.With("out", out).Debug("parsed applier output")
 
 		return &out, nil
 	}
