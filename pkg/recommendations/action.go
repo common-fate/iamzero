@@ -32,6 +32,7 @@ type AWSAction struct {
 	// SelectedAdvisoryID is the ID of the advisory selected by the user to resolve the policy
 	SelectedAdvisoryID string `json:"selectedAdvisoryId"`
 }
+type AWSActions []*AWSAction
 
 // SelectAdvisory sets the `SelectedAdvisoryID` field.
 // Returns an error if the advisory ID does not exist in `Recommendations`
@@ -53,4 +54,14 @@ func (a *AWSAction) GetSelectedAdvisory() *JSONAdvice {
 		}
 	}
 	return nil
+}
+
+func (actions *AWSActions) GetActive() *AWSActions {
+	filtered := AWSActions{}
+	for _, alert := range *actions {
+		if alert.Enabled && len(alert.Recommendations) > 0 {
+			filtered = append(filtered, alert)
+		}
+	}
+	return &filtered
 }

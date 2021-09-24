@@ -38,6 +38,8 @@ func (a *BoltActionStorage) Get(id string) (*recommendations.AWSAction, error) {
 }
 
 // ListForPolicy lists all the actions that related to a given policy
+//
+// Can filter for only enabled policies
 func (a *BoltActionStorage) ListForPolicy(policyID string) ([]recommendations.AWSAction, error) {
 	actions, err := a.List()
 	if err != nil {
@@ -48,6 +50,7 @@ func (a *BoltActionStorage) ListForPolicy(policyID string) ([]recommendations.AW
 	for _, action := range actions {
 		if action.PolicyID == policyID {
 			actionsForPolicy = append(actionsForPolicy, action)
+
 		}
 	}
 

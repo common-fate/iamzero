@@ -2,20 +2,19 @@ package commands
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"os"
-	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/common-fate/iamzero/pkg/applier"
+	cdkApplier "github.com/common-fate/iamzero/pkg/applier/cdk"
+	terraformApplier "github.com/common-fate/iamzero/pkg/applier/terraform"
+	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/common-fate/iamzero/pkg/storage"
+
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/pkg/errors"
@@ -32,7 +31,7 @@ type ApplyCommand struct {
 	skipSynth         bool
 }
 
-func askForConfirmation() bool {
+func promptForConfirmation() bool {
 	var response string
 
 	_, err := fmt.Scanln(&response)
@@ -47,7 +46,7 @@ func askForConfirmation() bool {
 		return false
 	default:
 		fmt.Println("Your input doesn't match what we expected, please type (y)es or (n)o and then press enter: ")
-		return askForConfirmation()
+		return promptForConfirmation()
 	}
 }
 
@@ -74,6 +73,33 @@ func NewApplyCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 		Options:    []ff.Option{ff.WithEnvVarPrefix("IAMZERO")},
 		Exec:       c.Exec,
 	}
+}
+
+func renderProjectDetectedMessage(name string, projectPath string) error {
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("We detected a %s project at %s\n", name, absPath)
+	return nil
+}
+
+func fetchEnabledAcionsForPolicy(actionStorage *storage.BoltActionStorage, policyID string) ([]recommendations.AWSAction, error) {
+	actions, err := actionStorage.ListForPolicy(policyID)
+	if err != nil {
+		return nil, err
+	}
+	var enabledActions []recommendations.AWSAction
+	for _, a := range actions {
+		if a.Enabled {
+			enabledActions = append(enabledActions, a)
+		}
+	}
+	return enabledActions, nil
+}
+func promptForChangeAcceptance() bool {
+	fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
+	return promptForConfirmation()
 }
 
 // Exec function for this command.
@@ -107,91 +133,51 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
-	// if the directory contains a `cdk.json` file, it's a CDK project
-	_, err = os.Stat(path.Join(projectPath, "cdk.json"))
-	if os.IsNotExist(err) {
-		return fmt.Errorf("We couldn't find a CDK project at %s. Please ensure that you are providing a path to a CDK project (which should contain a 'cdk.json' file)", projectPath)
-	} else if err != nil {
-		return err
-	}
-	absPath, err := filepath.Abs(projectPath)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("We detected an AWS CDK project at %s\n", absPath)
-	if !c.skipSynth {
-		fmt.Println("Synthesizing the CDK project with 'cdk synth' so that we can analyse it (you can skip this step by passing the -skip-synth flag)...")
-
-		cmd := exec.CommandContext(ctx, "cdk", "synth")
-		cmd.Dir = projectPath
-
-		cmd.Stderr = os.Stderr
-
-		err = cmd.Run()
-		if err != nil {
-			return err
-		}
-	}
-
-	// After the stack is synthesized the manifest file will be available
-	// at {projectDir}/cdk.out/manifest.json
-	manifest := path.Join(projectPath, "cdk.out", "manifest.json")
-	log.With("manifest", manifest).Debug("Stack synthesized")
-
 	policyStorage := storage.NewBoltPolicyStorage(db)
-
+	actionStorage := storage.NewBoltActionStorage(db)
 	findings, err := policyStorage.ListForStatus("active")
 	if err != nil {
 		return err
 	}
-	for _, f := range findings {
-		if f.CDKFinding != nil && f.CDKFinding.Role.CDKPath != "" {
-			findingStr, err := json.Marshal(f.CDKFinding)
-			if err != nil {
+
+	rootPolicyApplier := applier.AWSIAMPolicyApplier{
+		ProjectPath: projectPath, Logger: log}
+	// Here we can instansiate all our appliers
+	tf := terraformApplier.TerraformIAMPolicyApplier{AWSIAMPolicyApplier: rootPolicyApplier}
+	cdk := cdkApplier.CDKIAMPolicyApplier{AWSIAMPolicyApplier: rootPolicyApplier,
+		SkipSynth: c.skipSynth, CTX: ctx, ApplierBinaryPath: c.applierBinaryPath, Manifest: ""}
+
+	appliers := applier.PolicyAppliers{&tf, &cdk}
+
+	// if the directory contains a `cdk.json` file, it's a CDK project
+	// if the directory contains a `main.tf` file, it's a Terraform project
+	projectDetected := false
+	for _, applier := range appliers {
+		if applier.Detect() {
+			if err := renderProjectDetectedMessage(applier.GetProjectName(), ""); err != nil {
 				return err
 			}
-			log.With("finding", f.ID).Debug("applying finding")
-
-			cmd := exec.CommandContext(ctx, c.applierBinaryPath, "-f", string(findingStr), "-m", manifest)
-			cmd.Stderr = os.Stderr
-			stdout, err := cmd.Output()
-
-			if err != nil {
-				return err
-			}
-
-			var out applier.ApplierOutput
-
-			err = json.Unmarshal(stdout, &out)
-			if err != nil {
-				return err
-			}
-			log.With("out", out).Debug("parsed applier output")
-
-			fmt.Printf("\n💡 We found a recommended change based on our least-privilege policy analysis:\n\n")
-
-			for _, o := range out {
-				diff, err := applier.GetDiff(o.Path, o.Contents)
+			applier.Init()
+			projectDetected = true
+			for _, policy := range findings {
+				actions, err := fetchEnabledAcionsForPolicy(actionStorage, policy.ID)
 				if err != nil {
 					return err
 				}
-				fmt.Println(diff)
-
-			}
-			fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
-
-			confim := askForConfirmation()
-
-			if confim {
-				for _, o := range out {
-					err = ioutil.WriteFile(o.Path, []byte(o.Contents), 0644)
-					if err != nil {
-						return err
-					}
+				plan, err := applier.Plan(&policy, actions)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("\n💡 We found a recommended change based on our least-privilege policy analysis:\n\n")
+				plan.RenderDiff()
+				if promptForChangeAcceptance() {
+					applier.Apply(plan)
 				}
 			}
 		}
+	}
+	if !projectDetected {
+		return fmt.Errorf("we couldn't find a CDK project or a Terraform Project at %s. Please ensure that you are providing a path to a CDK project (which should contain a 'cdk.json' file) or a Terraform project (which should contain a 'main.tf' file)", projectPath)
 	}
 
 	return nil

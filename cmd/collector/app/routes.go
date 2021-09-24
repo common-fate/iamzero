@@ -206,10 +206,6 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 	}
 	policy.RecalculateDocument(actions)
 
-	if c.CDK {
-		policy.RecalculateCDKFinding(actions, c.log)
-	}
-
 	err = c.policyStorage.CreateOrUpdate(*policy)
 	if err != nil {
 		return nil, err
