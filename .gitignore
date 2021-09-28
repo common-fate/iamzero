@@ -3,3 +3,5 @@ deploy/packaged.yml
 .DS_Store
 dist/
 .env
+# Dont sync cloned repos
+temp-repo*
