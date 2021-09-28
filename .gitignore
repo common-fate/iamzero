@@ -2,3 +2,4 @@ bin
 deploy/packaged.yml
 .DS_Store
 dist/
+.env
