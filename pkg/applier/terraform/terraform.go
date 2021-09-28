@@ -319,7 +319,10 @@ func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChan
 			return nil, err
 		}
 		// Apply the finding by appending inline policies to the role
-		t.ApplyFindingToBlock(awsIamBlock, iamRoleStateFileResource, hclFile)
+		err = t.ApplyFindingToBlock(awsIamBlock, iamRoleStateFileResource, hclFile)
+		if err != nil {
+			return nil, err
+		}
 		return t.PendingChanges(), nil
 	}
 	// If we don't find the matching role, either something went wrong in our code, or the statefile doesn't match the source code.
