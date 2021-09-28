@@ -235,7 +235,8 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	stateFileResource, _ := tf.FindResourceInStateFileByArn(finding.Role)
 	block := terraformApplier.AwsIamBlock{iamBlocks[0]}
 	tf.FileHandler = &terraformApplier.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
-	tf.ApplyFindingToBlock(&block, stateFileResource, hclfile)
+	err := tf.ApplyFindingToBlock(&block, stateFileResource, hclfile)
+	assert.True(t, err == nil)
 
 	assert.Equal(t, string(hclwrite.Format(snapshot)), string(hclwrite.Format(hclfile.Bytes())))
 
@@ -259,9 +260,9 @@ func TestApplyFindingToBlocksWithSpecificBucketResource(t *testing.T) {
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket/README.md"
 	finding := &terraformApplier.TerraformFinding{FindingID: "abcde", Role: iamRoleARN, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
-	hclfile, err := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
-	if err != nil {
-		t.Fatal(err)
+	hclfile, diag := hclwrite.ParseConfig(initial, "./", hcl.InitialPos)
+	if diag != nil {
+		t.Fatal(diag)
 	}
 	iamBlocks := terraformApplier.ParseHclFileForAwsIamBlocks(hclfile)
 	stateFile, _ := terraformApplier.MarshalStateFileToGo(terraformShow)
@@ -270,8 +271,8 @@ func TestApplyFindingToBlocksWithSpecificBucketResource(t *testing.T) {
 	stateFileResource, _ := tf.FindResourceInStateFileByArn(finding.Role)
 	block := terraformApplier.AwsIamBlock{iamBlocks[0]}
 	tf.FileHandler = &terraformApplier.FileHandler{HclFiles: make(map[string]*hclwrite.File)}
-	tf.ApplyFindingToBlock(&block, stateFileResource, hclfile)
-
+	err := tf.ApplyFindingToBlock(&block, stateFileResource, hclfile)
+	assert.True(t, err == nil)
 	assert.Equal(t, string(hclwrite.Format(snapshotSpecificResource)), string(hclwrite.Format(hclfile.Bytes())))
 
 }

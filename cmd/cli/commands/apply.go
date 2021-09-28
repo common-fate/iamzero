@@ -155,9 +155,12 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 	for _, applier := range appliers {
 		if applier.Detect() {
 			if err := renderProjectDetectedMessage(applier.GetProjectName(), ""); err != nil {
-				return err
+				return errors.Wrap(err, "error rendering project detected message")
 			}
-			applier.Init()
+			if err := applier.Init(); err != nil {
+				return errors.Wrap(err, "error initializing the applier")
+			}
+
 			projectDetected = true
 			for _, policy := range findings {
 				actions, err := fetchEnabledAcionsForPolicy(actionStorage, policy.ID)
@@ -169,9 +172,14 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 					return err
 				}
 				fmt.Printf("\n💡 We found a recommended change based on our least-privilege policy analysis:\n\n")
-				plan.RenderDiff()
+				if err := plan.RenderDiff(); err != nil {
+					return errors.Wrap(err, "error rendering diff")
+				}
+
 				if promptForChangeAcceptance() {
-					applier.Apply(plan)
+					if err := applier.Apply(plan); err != nil {
+						return errors.Wrap(err, "error writing files during applying")
+					}
 				}
 			}
 		}
