@@ -54,4 +54,22 @@ EXPOSE 13991
 # Healthcheck
 EXPOSE 10866
 
+
+################################
+# Install Terraform
+################################
+# need wget
+RUN apk add --no-cache wget
+# Download terraform for linux
+RUN wget https://releases.hashicorp.com/terraform/0.14.9/terraform_0.14.9_linux_amd64.zip
+
+# Unzip
+RUN unzip terraform_0.14.9_linux_amd64.zip
+
+# Move to local bin
+RUN mv terraform /usr/local/bin/
+# Check that it's installed
+RUN terraform --version 
+
+
 CMD /app/iamzero-all-in-one
