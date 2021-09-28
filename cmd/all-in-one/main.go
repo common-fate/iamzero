@@ -61,8 +61,11 @@ func NewAllInOneCommand() *ffcli.Command {
 		ShortHelp:  "Run an IAM Zero collector.",
 		FlagSet:    fs,
 		// allow setting environment variables to configure server settings
-		Options: []ff.Option{ff.WithEnvVarPrefix("IAMZERO")},
-		Exec:    c.Exec,
+		Options: []ff.Option{ff.WithEnvVarPrefix("IAMZERO"),
+			ff.WithConfigFile(".env"),
+			ff.WithConfigFileParser(config.EnvFileParser("IAMZERO")),
+			ff.WithAllowMissingConfigFile(true)},
+		Exec: c.Exec,
 	}
 }
 
