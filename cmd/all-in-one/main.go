@@ -9,6 +9,7 @@ import (
 	collectorApp "github.com/common-fate/iamzero/cmd/collector/app"
 	consoleApp "github.com/common-fate/iamzero/cmd/console/app"
 	"github.com/common-fate/iamzero/internal/tracing"
+	"github.com/common-fate/iamzero/pkg/audit"
 	"github.com/common-fate/iamzero/pkg/config"
 	"github.com/common-fate/iamzero/pkg/service"
 	"github.com/common-fate/iamzero/pkg/storage"
@@ -24,6 +25,7 @@ type AllInOneCommand struct {
 	PostgresStorage   *storage.PostgresStorage
 	Collector         *collectorApp.Collector
 	Console           *consoleApp.Console
+	Auditor           *audit.Auditor
 	Svc               *service.Service
 }
 
@@ -45,6 +47,7 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.Console = consoleApp.New()
 	c.PostgresStorage = storage.NewPostgresStorage()
 	c.Svc = service.NewService()
+	c.Auditor = audit.New()
 
 	fs := flag.NewFlagSet("iamzero-collector", flag.ExitOnError)
 
@@ -55,6 +58,7 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.Console.AddFlags(fs)
 	c.PostgresStorage.AddFlags(fs)
 	c.Svc.AddFlags(fs)
+	c.Auditor.AddFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "iamzero-collector",
@@ -101,6 +105,7 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 		TokenStore:    store,
 		ActionStorage: actionStorage,
 		PolicyStorage: policyStorage,
+		Auditor:       c.Auditor,
 	}); err != nil {
 		return err
 	}
@@ -111,6 +116,7 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 		TokenStore:    store,
 		ActionStorage: actionStorage,
 		PolicyStorage: policyStorage,
+		Auditor:       c.Auditor,
 	}); err != nil {
 		return err
 	}
