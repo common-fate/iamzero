@@ -9,6 +9,7 @@ import (
 	collectorApp "github.com/common-fate/iamzero/cmd/collector/app"
 	consoleApp "github.com/common-fate/iamzero/cmd/console/app"
 	"github.com/common-fate/iamzero/internal/tracing"
+	"github.com/common-fate/iamzero/pkg/config"
 	"github.com/common-fate/iamzero/pkg/service"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
