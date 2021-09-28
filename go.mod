@@ -16,13 +16,17 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.5.0
 	github.com/fatih/color v1.12.0
 	github.com/go-chi/chi v1.5.4
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/uuid v1.2.0
-	github.com/hashicorp/hcl/v2 v2.10.1 // indirect
-	github.com/hashicorp/hcl2 v0.0.0-20191002203319-fb75b3253c80
+	github.com/hashicorp/hcl/v2 v2.10.1
 	github.com/hexops/gotextdiff v1.0.3
+	github.com/jmoiron/sqlx v1.3.4
+	github.com/kr/text v0.2.0 // indirect
+	github.com/lib/pq v1.2.1-0.20191011153232-f91d3411e481
+	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/peterbourgon/ff/v3 v3.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/smartystreets/goconvey v1.6.4 // indirect
+	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/zclconf/go-cty v1.9.1
 	go.etcd.io/bbolt v1.3.6 // indirect
@@ -30,15 +34,16 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.0.0-RC1
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1
 	go.opentelemetry.io/otel/trace v1.0.0-RC1
-	go.uber.org/zap v1.16.0
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781 // indirect
+	go.uber.org/zap v1.17.0
+	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/tools v0.0.0-20201224043029-2b0845dc783e // indirect
-	google.golang.org/grpc v1.38.0
-	gopkg.in/ini.v1 v1.62.0
+	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20210828152312-66f60bf46e71 // indirect
+	google.golang.org/grpc v1.40.0
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/ini.v1 v1.63.2
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
 
 )
