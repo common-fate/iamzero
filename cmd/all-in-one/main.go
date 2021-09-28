@@ -20,6 +20,7 @@ import (
 type AllInOneCommand struct {
 	TracingFactory    *tracing.TracingFactory
 	TokenStoreFactory *tokens.TokensStoreFactory
+	PostgresStorage   *storage.PostgresStorage
 	Collector         *collectorApp.Collector
 	Console           *consoleApp.Console
 	Svc               *service.Service
@@ -41,6 +42,7 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.TokenStoreFactory = tokens.NewFactory()
 	c.Collector = collectorApp.New()
 	c.Console = consoleApp.New()
+	c.PostgresStorage = storage.NewPostgresStorage()
 	c.Svc = service.NewService()
 
 	fs := flag.NewFlagSet("iamzero-collector", flag.ExitOnError)
@@ -50,6 +52,7 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.TokenStoreFactory.AddFlags(fs)
 	c.Collector.AddFlags(fs)
 	c.Console.AddFlags(fs)
+	c.PostgresStorage.AddFlags(fs)
 	c.Svc.AddFlags(fs)
 
 	return &ffcli.Command{
@@ -73,11 +76,17 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	store, err := c.TokenStoreFactory.GetTokensStore(ctx, &tokens.TokensFactorySetupOpts{Log: log, Tracer: tracer})
+
+	// Initialize Postgres
+	db, err := c.PostgresStorage.Connect()
 	if err != nil {
 		return err
 	}
 
+	store, err := c.TokenStoreFactory.GetTokensStore(ctx, &tokens.TokensFactorySetupOpts{Log: log, Tracer: tracer, DB: db})
+	if err != nil {
+		return err
+	}
 	// TODO: shift these to be configurable factories, similar to TokenStoreFactory
 	actionStorage := storage.NewInMemoryActionStorage()
 	policyStorage := storage.NewInMemoryPolicyStorage()

@@ -8,8 +8,8 @@ import (
 
 // Token is a token which allows IAM Zero clients to send events to IAM Zero
 type Token struct {
-	ID   string `dynamodbav:"id" json:"id"`
-	Name string `dynamodbav:"name" json:"name"`
+	ID   string `dynamodbav:"id" json:"id" db:"id"`
+	Name string `dynamodbav:"name" json:"name" db:"name"`
 }
 
 var ErrTokenNotFound = errors.New("token not found")
