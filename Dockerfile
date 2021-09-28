@@ -1,3 +1,33 @@
+FROM debian:buster-slim as terraform_installer
+
+################################
+# Install Terraform
+################################
+WORKDIR /app
+
+# Install dependencies needed to download and verify Terraform
+RUN  apt-get update \
+  && apt-get install -y wget gnupg unzip \
+  && rm -rf /var/lib/apt/lists/*
+
+# Download terraform for linux
+RUN wget https://releases.hashicorp.com/terraform/0.14.11/terraform_0.14.11_linux_amd64.zip
+RUN wget https://releases.hashicorp.com/terraform/0.14.11/terraform_0.14.11_SHA256SUMS
+RUN wget https://releases.hashicorp.com/terraform/0.14.11/terraform_0.14.11_SHA256SUMS.sig
+
+COPY docker/hashicorp.asc ./
+
+# Verify the signature file is untampered.
+RUN gpg --import hashicorp.asc
+
+RUN gpg --verify terraform_0.14.11_SHA256SUMS.sig terraform_0.14.11_SHA256SUMS
+
+# Verify the SHASUM matches the archive.
+RUN sha256sum --ignore-missing -c terraform_0.14.11_SHA256SUMS 
+
+# Unzip
+RUN unzip terraform_0.14.11_linux_amd64.zip
+
 ################################################
 # Build the frontend
 ################################################
@@ -39,6 +69,9 @@ FROM alpine:3.13.5
 
 WORKDIR /app
 
+# add the terraform binary
+COPY --from=terraform_installer /app/terraform /usr/local/bin/terraform
+
 COPY --from=server_builder /app/bin/iamzero-all-in-one /app/iamzero-all-in-one
 
 # set HTTP ingress port
@@ -53,23 +86,5 @@ EXPOSE 13991
 
 # Healthcheck
 EXPOSE 10866
-
-
-################################
-# Install Terraform
-################################
-# need wget
-RUN apk add --no-cache wget
-# Download terraform for linux
-RUN wget https://releases.hashicorp.com/terraform/0.14.9/terraform_0.14.9_linux_amd64.zip
-
-# Unzip
-RUN unzip terraform_0.14.9_linux_amd64.zip
-
-# Move to local bin
-RUN mv terraform /usr/local/bin/
-# Check that it's installed
-RUN terraform --version 
-
 
 CMD /app/iamzero-all-in-one
