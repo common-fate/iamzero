@@ -148,12 +148,12 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 			}
 
 			projectDetected = true
-			for _, policy := range findings {
-				actions, err := actionStorage.ListEnabledActionsForPolicy(policy.ID)
+			for _, finding := range findings {
+				actions, err := actionStorage.ListEnabledActionsForFinding(finding.ID)
 				if err != nil {
 					return err
 				}
-				applier.CalculateFinding(&policy, actions)
+				applier.CalculateFinding(&finding, actions)
 				plan, err := applier.Plan()
 				if err != nil {
 					return err

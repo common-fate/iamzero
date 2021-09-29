@@ -12,8 +12,8 @@ type InMemoryActionStorage struct {
 	actions []recommendations.AWSAction
 }
 
-func (a *InMemoryActionStorage) ListEnabledActionsForPolicy(policyID string) ([]recommendations.AWSAction, error) {
-	actions, err := a.ListForPolicy(policyID)
+func (a *InMemoryActionStorage) ListEnabledActionsForFinding(findingID string) ([]recommendations.AWSAction, error) {
+	actions, err := a.ListForPolicy(findingID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,11 +51,11 @@ func (a *InMemoryActionStorage) Get(id string) (*recommendations.AWSAction, erro
 }
 
 // ListForPolicy lists all the actions that related to a given policy
-func (a *InMemoryActionStorage) ListForPolicy(policyID string) ([]recommendations.AWSAction, error) {
+func (a *InMemoryActionStorage) ListForPolicy(findingID string) ([]recommendations.AWSAction, error) {
 	actions := []recommendations.AWSAction{}
 
 	for _, action := range a.actions {
-		if action.PolicyID == policyID {
+		if action.FindingID == findingID {
 			actions = append(actions, action)
 		}
 	}

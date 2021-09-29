@@ -176,7 +176,7 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 
 	action := recommendations.AWSAction{
 		ID:                 uuid.NewString(),
-		PolicyID:           finding.ID,
+		FindingID:          finding.ID,
 		Event:              e,
 		Status:             recommendations.AlertActive,
 		Time:               time.Now(),

@@ -9,8 +9,8 @@ type BoltActionStorage struct {
 	db *storm.DB
 }
 
-func (a *BoltActionStorage) ListEnabledActionsForPolicy(policyID string) ([]recommendations.AWSAction, error) {
-	actions, err := a.ListForPolicy(policyID)
+func (a *BoltActionStorage) ListEnabledActionsForFinding(findingID string) ([]recommendations.AWSAction, error) {
+	actions, err := a.ListForPolicy(findingID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (a *BoltActionStorage) Get(id string) (*recommendations.AWSAction, error) {
 // ListForPolicy lists all the actions that related to a given policy
 //
 // Can filter for only enabled policies
-func (a *BoltActionStorage) ListForPolicy(policyID string) ([]recommendations.AWSAction, error) {
+func (a *BoltActionStorage) ListForPolicy(findingID string) ([]recommendations.AWSAction, error) {
 	actions, err := a.List()
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func (a *BoltActionStorage) ListForPolicy(policyID string) ([]recommendations.AW
 
 	actionsForPolicy := []recommendations.AWSAction{}
 	for _, action := range actions {
-		if action.PolicyID == policyID {
+		if action.FindingID == findingID {
 			actionsForPolicy = append(actionsForPolicy, action)
 
 		}

@@ -2,12 +2,12 @@ import { Flex, Heading, Stack, Text } from "@chakra-ui/layout";
 import { Badge, Box, Icon } from "@chakra-ui/react";
 import React from "react";
 import { FaUserAlt } from "react-icons/fa";
-import { Policy } from "../api-types";
+import { Finding } from "../api-types";
 import { getEventCountString } from "../utils/getEventCountString";
 import { RelativeDateText } from "./LastUpdatedText";
 
 interface Props {
-  policy: Policy;
+  policy: Finding;
   onClick?: () => void;
 }
 

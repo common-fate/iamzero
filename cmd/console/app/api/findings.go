@@ -9,10 +9,10 @@ import (
 	"github.com/go-chi/chi"
 )
 
-// ListPolicies lists policies stored by IAM Zero.
-// If the `status` query parameter is passed only policies matching the status
+// ListFindings lists findings stored by IAM Zero.
+// If the `status` query parameter is passed only findings matching the status
 // will be returned
-func (h *Handlers) ListPolicies(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) ListFindings(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	status := r.URL.Query().Get("status")
 
@@ -38,7 +38,7 @@ func (h *Handlers) ListPolicies(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) GetFinding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	findingID := chi.URLParam(r, "policyID")
+	findingID := chi.URLParam(r, "findingID")
 	finding, err := h.FindingStorage.Get(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
@@ -55,7 +55,7 @@ func (h *Handlers) GetFinding(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) ListActionsForFinding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	findingID := chi.URLParam(r, "policyID")
+	findingID := chi.URLParam(r, "findingID")
 	alerts, err := h.ActionStorage.ListForPolicy(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
@@ -94,7 +94,7 @@ func (h *Handlers) FindFinding(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) SetFindingStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	findingID := chi.URLParam(r, "policyID")
+	findingID := chi.URLParam(r, "findingID")
 
 	var b setPolicyStatusBody
 

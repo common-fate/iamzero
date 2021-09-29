@@ -45,12 +45,12 @@ func (c *Console) GetConsoleRoutes() *chi.Mux {
 				})
 			})
 
-			r.Route("/policies", func(r chi.Router) {
-				r.Get("/", handlers.ListPolicies)
+			r.Route("/findings", func(r chi.Router) {
+				r.Get("/", handlers.ListFindings)
 				r.Get("/find", handlers.FindFinding)
-				r.Get("/{policyID}", handlers.GetFinding)
-				r.Get("/{policyID}/actions", handlers.ListActionsForFinding)
-				r.Put("/{policyID}/status", handlers.SetFindingStatus)
+				r.Get("/{findingID}", handlers.GetFinding)
+				r.Get("/{findingID}/actions", handlers.ListActionsForFinding)
+				r.Put("/{findingID}/status", handlers.SetFindingStatus)
 			})
 		})
 	})

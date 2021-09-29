@@ -39,7 +39,7 @@ import {
   EditActionRequestBody,
   setPolicyStatus,
   useActionsForPolicy,
-  usePolicy,
+  useFinding,
 } from "../api";
 import { Action, PolicyStatus } from "../api-types";
 import { CenteredSpinner } from "../components/CenteredSpinner";
@@ -49,12 +49,12 @@ import { getAlertTitle } from "../utils/getAlertTitle";
 import { getEventCountString } from "../utils/getEventCountString";
 import { renderStringOrObject } from "../utils/renderStringOrObject";
 
-const PolicyDetails: React.FC = () => {
-  const { policyId } = useParams<{ policyId: string }>();
+const FindingDetails: React.FC = () => {
+  const { findingId } = useParams<{ findingId: string }>();
 
-  const { data: policy, mutate, error } = usePolicy(policyId);
+  const { data: policy, mutate, error } = useFinding(findingId);
   const { data: actions, mutate: mutateActions } = useActionsForPolicy(
-    policyId
+    findingId
   );
   const [loadingPolicy, setLoadingPolicy] = useState(false);
   const { hasCopied, onCopy } = useClipboard(JSON.stringify(policy, null, 2));
@@ -77,7 +77,7 @@ const PolicyDetails: React.FC = () => {
       <Center flexGrow={1}>
         <Text>
           We couldn't find the policy you're looking for.{" "}
-          <Link as={RouterLink} to="/policies">
+          <Link as={RouterLink} to="/findings">
             Click here to go back.
           </Link>
         </Text>
@@ -116,8 +116,8 @@ const PolicyDetails: React.FC = () => {
       <Stack flexGrow={1} p={5}>
         <Breadcrumb>
           <BreadcrumbItem>
-            <BreadcrumbLink as={RouterLink} to="/policies">
-              Policies
+            <BreadcrumbLink as={RouterLink} to="/findings">
+              Findings
             </BreadcrumbLink>
           </BreadcrumbItem>
 
@@ -487,4 +487,4 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
   );
 };
 
-export default PolicyDetails;
+export default FindingDetails;

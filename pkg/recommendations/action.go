@@ -20,7 +20,7 @@ type Resource struct {
 
 type AWSAction struct {
 	ID                 string        `json:"id"`
-	PolicyID           string        `json:"policyId"`
+	FindingID          string        `json:"findingId"`
 	Event              AWSEvent      `json:"event"`
 	Status             string        `json:"status"`
 	Time               time.Time     `json:"time"`

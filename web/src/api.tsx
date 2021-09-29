@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Action, Policy, PolicyStatus, Token } from "./api-types";
+import { Action, Finding, PolicyStatus, Token } from "./api-types";
 
 /**
  * Adds the x-iamzero-token header to auth requests.
@@ -51,7 +51,7 @@ export interface EditActionRequestBody {
 }
 
 export const editAction = (actionId: string, body: EditActionRequestBody) =>
-  fetchWithAuth<Policy>(`/api/v1/actions/${actionId}/edit`, {
+  fetchWithAuth<Finding>(`/api/v1/actions/${actionId}/edit`, {
     method: "PUT",
     body: JSON.stringify(body),
   });
@@ -62,23 +62,23 @@ export const useAction = (actionId: string | null) =>
   useSWR<Action>(actionId ? `/api/v1/actions/${actionId}` : null);
 
 export const usePolicies = (status?: PolicyStatus) =>
-  useSWR<Policy[]>(
-    status ? `/api/v1/policies?status=${status}` : `/api/v1/policies`,
+  useSWR<Finding[]>(
+    status ? `/api/v1/findings?status=${status}` : `/api/v1/findings`,
     {
       revalidateOnFocus: true,
     }
   );
 
-export const usePolicy = (policyId: string | null) =>
-  useSWR<Policy>(policyId ? `/api/v1/policies/${policyId}` : null);
+export const useFinding = (findingId: string | null) =>
+  useSWR<Finding>(findingId ? `/api/v1/findings/${findingId}` : null);
 
-export const useActionsForPolicy = (policyId: string | null) =>
-  useSWR<Action[]>(policyId ? `/api/v1/policies/${policyId}/actions` : null, {
+export const useActionsForPolicy = (findingId: string | null) =>
+  useSWR<Action[]>(findingId ? `/api/v1/findings/${findingId}/actions` : null, {
     revalidateOnFocus: true,
   });
 
-export const setPolicyStatus = (policyId: string, status: PolicyStatus) =>
-  fetchWithAuth(`/api/v1/policies/${policyId}/status`, {
+export const setPolicyStatus = (findingId: string, status: PolicyStatus) =>
+  fetchWithAuth(`/api/v1/findings/${findingId}/status`, {
     method: "PUT",
     body: JSON.stringify({ status }),
   });
