@@ -53,9 +53,9 @@ type CDKIAMPolicyApplier struct {
 	Manifest            string
 }
 
-func (t CDKIAMPolicyApplier) GetProjectName() string { return "CDK" }
+func (t *CDKIAMPolicyApplier) GetProjectName() string { return "CDK" }
 
-func (t CDKIAMPolicyApplier) Init() error {
+func (t *CDKIAMPolicyApplier) Init() error {
 
 	if !t.SkipSynth {
 		fmt.Println("Synthesizing the CDK project with 'cdk synth' so that we can analyse it (you can skip this step by passing the -skip-synth flag)...")
@@ -79,13 +79,16 @@ func (t CDKIAMPolicyApplier) Init() error {
 	return nil
 }
 
-func (t CDKIAMPolicyApplier) Detect() bool {
+func (t *CDKIAMPolicyApplier) Detect() bool {
 	_, errCdk := os.Stat(path.Join(t.AWSIAMPolicyApplier.ProjectPath, "cdk.json"))
 	return os.IsExist(errCdk)
 }
-
-func (t CDKIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []recommendations.AWSAction) (*applier.PendingChanges, error) {
+func (t *CDKIAMPolicyApplier) CalculateFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 	t.calculateCDKFinding(policy, actions)
+
+}
+func (t *CDKIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
+
 	if t.Finding != nil && t.Finding.Role.CDKPath != "" {
 		findingStr, err := json.Marshal(t.Finding)
 		if err != nil {
@@ -116,7 +119,7 @@ func (t CDKIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []reco
 
 }
 
-func (t CDKIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
+func (t *CDKIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 	for _, o := range *changes {
 		err := ioutil.WriteFile(o.Path, []byte(o.Contents), 0644)
 		if err != nil {
@@ -126,7 +129,7 @@ func (t CDKIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 	return nil
 }
 
-func (t CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
+func (t *CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 	// only derive a CDK finding if we know that the role that we are
 	// giving recommendations for has been defined using CDK
 	if policy.Identity.CDKResource == nil {

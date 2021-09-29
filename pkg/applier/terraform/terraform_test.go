@@ -230,7 +230,7 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	iamBlocks := terraformApplier.ParseHclFileForAwsIamBlocks(hclfile)
 	stateFile, _ := terraformApplier.MarshalStateFileToGo(terraformShow)
 	tf := terraformApplier.TerraformIAMPolicyApplier{AWSIAMPolicyApplier: applier.AWSIAMPolicyApplier{
-		ProjectPath: ""}, StateFile: &stateFile, Finding: finding}
+		ProjectPath: ""}, StateFile: stateFile, Finding: finding}
 
 	stateFileResource, _ := tf.FindResourceInStateFileByArn(finding.Role)
 	block := terraformApplier.AwsIamBlock{iamBlocks[0]}
@@ -267,7 +267,7 @@ func TestApplyFindingToBlocksWithSpecificBucketResource(t *testing.T) {
 	iamBlocks := terraformApplier.ParseHclFileForAwsIamBlocks(hclfile)
 	stateFile, _ := terraformApplier.MarshalStateFileToGo(terraformShow)
 	tf := terraformApplier.TerraformIAMPolicyApplier{AWSIAMPolicyApplier: applier.AWSIAMPolicyApplier{Logger: &zap.SugaredLogger{},
-		ProjectPath: ""}, StateFile: &stateFile, Finding: finding}
+		ProjectPath: ""}, StateFile: stateFile, Finding: finding}
 	stateFileResource, _ := tf.FindResourceInStateFileByArn(finding.Role)
 	block := terraformApplier.AwsIamBlock{iamBlocks[0]}
 	tf.FileHandler = &terraformApplier.FileHandler{HclFiles: make(map[string]*hclwrite.File)}

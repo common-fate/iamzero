@@ -12,7 +12,6 @@ import (
 	"github.com/common-fate/iamzero/pkg/applier"
 	cdkApplier "github.com/common-fate/iamzero/pkg/applier/cdk"
 	terraformApplier "github.com/common-fate/iamzero/pkg/applier/terraform"
-	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/common-fate/iamzero/pkg/storage"
 
 	"github.com/peterbourgon/ff/v3"
@@ -84,19 +83,6 @@ func renderProjectDetectedMessage(name string, projectPath string) error {
 	return nil
 }
 
-func fetchEnabledAcionsForPolicy(actionStorage *storage.BoltActionStorage, policyID string) ([]recommendations.AWSAction, error) {
-	actions, err := actionStorage.ListForPolicy(policyID)
-	if err != nil {
-		return nil, err
-	}
-	var enabledActions []recommendations.AWSAction
-	for _, a := range actions {
-		if a.Enabled {
-			enabledActions = append(enabledActions, a)
-		}
-	}
-	return enabledActions, nil
-}
 func promptForChangeAcceptance() bool {
 	fmt.Printf("[IAM ZERO] Accept the change? [y/n]: ")
 	return promptForConfirmation()
@@ -163,11 +149,12 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 
 			projectDetected = true
 			for _, policy := range findings {
-				actions, err := fetchEnabledAcionsForPolicy(actionStorage, policy.ID)
+				actions, err := actionStorage.ListEnabledActionsForPolicy(policy.ID)
 				if err != nil {
 					return err
 				}
-				plan, err := applier.Plan(&policy, actions)
+				applier.CalculateFinding(&policy, actions)
+				plan, err := applier.Plan()
 				if err != nil {
 					return err
 				}

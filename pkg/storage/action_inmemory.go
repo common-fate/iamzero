@@ -12,6 +12,20 @@ type InMemoryActionStorage struct {
 	actions []recommendations.AWSAction
 }
 
+func (a *InMemoryActionStorage) ListEnabledActionsForPolicy(policyID string) ([]recommendations.AWSAction, error) {
+	actions, err := a.ListForPolicy(policyID)
+	if err != nil {
+		return nil, err
+	}
+	var enabledActions []recommendations.AWSAction
+	for _, a := range actions {
+		if a.Enabled {
+			enabledActions = append(enabledActions, a)
+		}
+	}
+	return enabledActions, nil
+}
+
 func NewInMemoryActionStorage() *InMemoryActionStorage {
 	return &InMemoryActionStorage{actions: []recommendations.AWSAction{}}
 }

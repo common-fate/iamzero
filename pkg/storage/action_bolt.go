@@ -9,6 +9,19 @@ type BoltActionStorage struct {
 	db *storm.DB
 }
 
+func (a *BoltActionStorage) ListEnabledActionsForPolicy(policyID string) ([]recommendations.AWSAction, error) {
+	actions, err := a.ListForPolicy(policyID)
+	if err != nil {
+		return nil, err
+	}
+	var enabledActions []recommendations.AWSAction
+	for _, a := range actions {
+		if a.Enabled {
+			enabledActions = append(enabledActions, a)
+		}
+	}
+	return enabledActions, nil
+}
 func NewBoltActionStorage(db *storm.DB) *BoltActionStorage {
 	return &BoltActionStorage{db: db}
 }

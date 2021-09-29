@@ -7,6 +7,7 @@ type ActionStorage interface {
 	List() ([]recommendations.AWSAction, error)
 	Get(id string) (*recommendations.AWSAction, error)
 	ListForPolicy(policyID string) ([]recommendations.AWSAction, error)
+	ListEnabledActionsForPolicy(policyID string) ([]recommendations.AWSAction, error)
 	SetStatus(id string, status string) error
 	Update(action recommendations.AWSAction) error
 }

@@ -23,8 +23,10 @@ type PolicyApplier interface {
 	Init() error
 	// The Detect function shoudl evaluate whether there is a project matching this applier at the project path
 	Detect() bool
-	// Plan will detect the changes required to apply a policy and return the results
-	Plan(*recommendations.Policy, []recommendations.AWSAction) (*PendingChanges, error)
+	// should process the policie and actiosn to generate and store a finding internally
+	CalculateFinding(*recommendations.Policy, []recommendations.AWSAction)
+	// Plan will detect the changes required to apply a policy and return the results, you need to run calculate finding first
+	Plan() (*PendingChanges, error)
 	// Apply will write the changes to the project files
 	Apply(*PendingChanges) error
 	// This should return a string descripting what type of project this applier operates on e.g "Terraform" or "CDK"

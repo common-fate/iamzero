@@ -73,8 +73,9 @@ type StateFileAttribute struct {
 
 type StateFileResourceBlock struct {
 	StateFileResource
-	FilePath      string
-	ParentAddress string
+	FilePath         string
+	FilePathFromRoot string
+	ParentAddress    string
 }
 
 type FileHandler struct {
@@ -92,7 +93,7 @@ type TerraformIAMPolicyApplier struct {
 	StateFile           *StateFile
 }
 
-var ROOT_TERRAFORM_FILE = "main.tf"
+var MAIN_TERRAFORM_FILE = "main.tf"
 
 func (t *TerraformIAMPolicyApplier) GetProjectName() string { return "Terraform" }
 
@@ -101,11 +102,11 @@ func (t *TerraformIAMPolicyApplier) Init() error {
 	t.FileHandler = &FileHandler{HclFiles: make(map[string]*hclwrite.File)}
 
 	// load the statefile
-	stateFile, err := parseTerraformState()
+	stateFile, err := t.parseTerraformState()
 	if err != nil {
 		return err
 	}
-	t.StateFile = &stateFile
+	t.StateFile = stateFile
 	return nil
 }
 
@@ -114,8 +115,10 @@ func (t *TerraformIAMPolicyApplier) Detect() bool {
 	return err == nil
 }
 
-func (t *TerraformIAMPolicyApplier) Plan(policy *recommendations.Policy, actions []recommendations.AWSAction) (*applier.PendingChanges, error) {
+func (t *TerraformIAMPolicyApplier) CalculateFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 	t.calculateTerraformFinding(policy, actions)
+}
+func (t *TerraformIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
 	return t.PlanTerraformFinding()
 }
 
@@ -131,8 +134,9 @@ func (t *TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error
 }
 
 func (t *TerraformIAMPolicyApplier) getRootFilePath() string {
-	return path.Join(t.AWSIAMPolicyApplier.ProjectPath, ROOT_TERRAFORM_FILE)
+	return path.Join(t.AWSIAMPolicyApplier.ProjectPath, MAIN_TERRAFORM_FILE)
 }
+
 func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 
 	terraformFinding := TerraformFinding{
@@ -312,14 +316,12 @@ func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChan
 	if awsIamBlock != nil {
 		// Remove any managed policy attachments for this role
 		t.FindAndRemovePolicyAttachmentsForRole(iamRoleStateFileResource.StateFileResource)
-
 		rootHclFile, err := t.FileHandler.OpenFile(t.getRootFilePath(), false)
-		fmt.Println(string(rootHclFile.Bytes()))
 		if err != nil {
 			return nil, err
 		}
 		// Apply the finding by appending inline policies to the role
-		err = t.ApplyFindingToBlock(awsIamBlock, iamRoleStateFileResource, hclFile)
+		err = t.ApplyFindingToBlock(awsIamBlock, iamRoleStateFileResource, rootHclFile)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +332,7 @@ func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChan
 	return nil, fmt.Errorf("an error occurred finding the matching iam role in your terraform project, your state file may be outdated, try running 'terraform plan'")
 
 }
-func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleStateFileResource StateFileResourceBlock, hclFile *hclwrite.File) error {
+func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock, iamRoleStateFileResource StateFileResourceBlock, rootHclFile *hclwrite.File) error {
 	newInlinePolicies := []*hclwrite.Block{}
 	existingInlinePoliciesToRemove := []*hclwrite.Block{}
 	for _, nestedBlock := range awsIamBlock.Body().Blocks() {
@@ -384,11 +386,13 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 
 					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, awsResource.ParentAddress+".")+".arn")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(hclFile.Body().Blocks(), awsResource.FilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(rootHclFile.Body().Blocks(), awsResource.FilePathFromRoot)
 					resourcePathInRootModule := ""
 					if moduleDefinitionInRoot != nil {
 
 						resourcePathInRootModule = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
+					} else {
+						return fmt.Errorf("failed to find module block in file Root file for :%s", awsResource.FilePathFromRoot)
 					}
 
 					// resource is in root, role is in another file
@@ -404,10 +408,13 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 
 					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
-					moduleDefinitionInRoot = FindModuleBlockBySourcePath(hclFile.Body().Blocks(), iamRoleStateFileResource.FilePath)
+					moduleDefinitionInRoot = FindModuleBlockBySourcePath(rootHclFile.Body().Blocks(), iamRoleStateFileResource.FilePathFromRoot)
+
 					if moduleDefinitionInRoot != nil {
 						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, resourcePathInRootModule)
 						arn = "var." + variableName
+					} else {
+						return fmt.Errorf("failed to find module block in file Root file for :%s", iamRoleStateFileResource.FilePathFromRoot)
 					}
 
 				} else if !awsResource.IsInRoot() && iamRoleStateFileResource.IsInRoot() {
@@ -423,10 +430,12 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 					}
 					outputName := AppendOutputBlockIfNotExist(outputsFile.Body(), GenerateOutputName(awsResource.Name, "arn"), "IAMZero generated output for resource", strings.Trim(awsResource.Address, awsResource.ParentAddress+".")+".arn")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(hclFile.Body().Blocks(), awsResource.FilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(rootHclFile.Body().Blocks(), awsResource.FilePathFromRoot)
 					if moduleDefinitionInRoot != nil {
 
 						arn = strings.Join([]string{"module", moduleDefinitionInRoot.Labels()[0], outputName}, ".")
+					} else {
+						return fmt.Errorf("failed to find module block in file Root file for :%s", awsResource.FilePathFromRoot)
 					}
 
 				} else if awsResource.IsInRoot() && !iamRoleStateFileResource.IsInRoot() {
@@ -442,10 +451,12 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 					}
 					variableName := AppendVariableBlockIfNotExist(variablesFile.Body(), GenerateVariableName(awsResource.Name, "arn"), "IAMZero generated variable for resource")
 
-					moduleDefinitionInRoot := FindModuleBlockBySourcePath(hclFile.Body().Blocks(), iamRoleStateFileResource.FilePath)
+					moduleDefinitionInRoot := FindModuleBlockBySourcePath(rootHclFile.Body().Blocks(), iamRoleStateFileResource.FilePathFromRoot)
 					if moduleDefinitionInRoot != nil {
 						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, awsResource.Address+".arn")
 						arn = "var." + variableName
+					} else {
+						return fmt.Errorf("failed to find module block in file Root file for :%s", iamRoleStateFileResource.FilePathFromRoot)
 					}
 				} else {
 					// add quotes around it to make it valid for our use, maybe a json stringify equivalent would be good here to add the quotes robustly
@@ -580,6 +591,8 @@ func (t *TerraformIAMPolicyApplier) FindPolicyAttachmentsInStateFileByRoleName(n
 	terraformFilePath := t.getRootFilePath()
 	resourceType := "aws_iam_policy_attachment"
 	matches := make(map[string][]StateFileResource)
+
+	// First checks if its in the root modules
 	for _, r := range t.StateFile.Values.RootModule.Resources {
 		if r.Type == resourceType && sliceContains(r.Values.Roles, name) {
 			if matches[terraformFilePath] == nil {
@@ -588,10 +601,11 @@ func (t *TerraformIAMPolicyApplier) FindPolicyAttachmentsInStateFileByRoleName(n
 			matches[terraformFilePath] = append(matches[terraformFilePath], r)
 		}
 	}
+	// Then will check if its in other modules below the root
 	for _, module := range t.StateFile.Values.RootModule.ChildModules {
 		for _, r := range module.Resources {
 			if r.Type == resourceType && sliceContains(r.Values.Roles, name) {
-				terraformFilePath = filepath.Join("modules", filepath.Join(strings.Split(module.Address, ".")[1:]...), terraformFilePath)
+				terraformFilePath = filepath.Join(t.AWSIAMPolicyApplier.ProjectPath, "modules", filepath.Join(strings.Split(module.Address, ".")[1:]...), MAIN_TERRAFORM_FILE)
 				if matches[terraformFilePath] == nil {
 					matches[terraformFilePath] = []StateFileResource{}
 				}
@@ -610,38 +624,48 @@ func (t *TerraformIAMPolicyApplier) FindResourceInStateFileBase(value string, at
 	terraformFilePath := t.getRootFilePath()
 	for _, r := range t.StateFile.Values.RootModule.Resources {
 		if attributefn(r) == value {
-			return StateFileResourceBlock{r, terraformFilePath, "."}, nil
+			return StateFileResourceBlock{r, terraformFilePath, "./", "."}, nil
 		}
 	}
 	for _, module := range t.StateFile.Values.RootModule.ChildModules {
 		for _, r := range module.Resources {
 			if attributefn(r) == value {
+				terraformFilePathFromRoot := filepath.Join("modules", filepath.Join(strings.Split(module.Address, ".")[1:]...), MAIN_TERRAFORM_FILE)
+				terraformFilePath = filepath.Join(t.AWSIAMPolicyApplier.ProjectPath, terraformFilePathFromRoot)
 
-				terraformFilePath = filepath.Join("modules", filepath.Join(strings.Split(module.Address, ".")[1:]...), terraformFilePath)
-				return StateFileResourceBlock{r, terraformFilePath, module.Address}, nil
+				return StateFileResourceBlock{r, terraformFilePath, terraformFilePathFromRoot, module.Address}, nil
 			}
 		}
 
 	}
-	return StateFileResourceBlock{StateFileResource{}, "", ""}, fmt.Errorf("not found")
+	return StateFileResourceBlock{StateFileResource{}, "", "", ""}, fmt.Errorf("could not find a matching resource in the state file for %s", value)
 }
-func parseTerraformState() (StateFile, error) {
+func (t *TerraformIAMPolicyApplier) parseTerraformState() (*StateFile, error) {
+	// var terraformShow = []byte(`{"format_version":"0.1","terraform_version":"0.14.9","values":{"root_module":{"resources":[{"address":"aws_iam_role.iamzero-overprivileged-role","mode":"managed","type":"aws_iam_role","name":"iamzero-overprivileged-role","provider_name":"registry.terraform.io/hashicorp/aws","schema_version":0,"values":{"arn":"arn:aws:iam::312231318920:role/iamzero-tf-overprivileged-role","assume_role_policy":"{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::312231318920:root\"},\"Action\":\"sts:AssumeRole\"}]}","create_date":"2021-09-03T03:30:22Z","description":"","force_detach_policies":false,"id":"iamzero-tf-overprivileged-role","inline_policy":[{"name":"tf-example-policy","policy":"{\"Statement\":[{\"Action\":[\"*\"],\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}"}],"managed_policy_arns":[],"max_session_duration":3600,"name":"iamzero-tf-overprivileged-role","name_prefix":null,"path":"/","permissions_boundary":null,"tags":{},"tags_all":{},"unique_id":"AROAURMTP2WECJCRJBHTS"}},{"address":"aws_s3_bucket.iamzero-tf-example-bucket","mode":"managed","type":"aws_s3_bucket","name":"iamzero-tf-example-bucket","provider_name":"registry.terraform.io/hashicorp/aws","schema_version":0,"values":{"acceleration_status":"","acl":"private","arn":"arn:aws:s3:::iamzero-tf-example-bucket","bucket":"iamzero-tf-example-bucket","bucket_domain_name":"iamzero-tf-example-bucket.s3.amazonaws.com","bucket_prefix":null,"bucket_regional_domain_name":"iamzero-tf-example-bucket.s3.ap-southeast-2.amazonaws.com","cors_rule":[],"force_destroy":false,"grant":[],"hosted_zone_id":"Z1WCIGYICN2BYD","id":"iamzero-tf-example-bucket","lifecycle_rule":[],"logging":[],"object_lock_configuration":[],"policy":null,"region":"ap-southeast-2","replication_configuration":[],"request_payer":"BucketOwner","server_side_encryption_configuration":[],"tags":{},"tags_all":{},"versioning":[{"enabled":false,"mfa_delete":false}],"website":[],"website_domain":null,"website_endpoint":null}}]}}}`)
+
+	// return MarshalStateFileToGo(terraformShow)
 	// need to be in the root of the terraform repo for this to work
 	// doing this gets the correct state for us,alternative would be to copy this code from teh terraform repo
-	out, err := exec.Command("terraform", "show", "-json").Output()
+	// JSON output via the -json option requires Terraform v0.12 or later.
+	// https://www.terraform.io/docs/cli/commands/show.html
+	_, err := exec.Command("terraform", "-chdir=./"+t.AWSIAMPolicyApplier.ProjectPath, "init").Output()
 	if err != nil {
-		return StateFile{}, err
+		return nil, fmt.Errorf("failed to init terraform ' %s", err)
+	}
+	out, err := exec.Command("terraform", "-chdir=./"+t.AWSIAMPolicyApplier.ProjectPath, "show", "-json").Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load stateFile using 'terraform show -json' %s", err)
 	}
 	return MarshalStateFileToGo(out)
 }
 
-func MarshalStateFileToGo(stateFileBytes []byte) (StateFile, error) {
+func MarshalStateFileToGo(stateFileBytes []byte) (*StateFile, error) {
 	var stateFile StateFile
 	err := json.Unmarshal(stateFileBytes, &stateFile)
 	if err != nil {
-		return StateFile{}, err
+		return nil, err
 	}
-	return stateFile, nil
+	return &stateFile, nil
 }
 
 func StringCompareAttributeValue(attribute *hclwrite.Attribute, compareTo string) bool {
