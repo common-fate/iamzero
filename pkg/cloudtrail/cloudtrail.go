@@ -1,4 +1,4 @@
-package audit
+package cloudtrail
 
 import (
 	"context"
@@ -34,10 +34,19 @@ func NewCloudTrailAuditor(params *CloudTrailAuditorParams) *CloudTrailAuditor {
 	}
 }
 
+type CloudTrailUserIdentity struct {
+	Type          *string
+	PrincipalID   *string
+	ARN           *string
+	AccountID     *string
+	InvokedBy     *string
+	SessionIssuer *string
+}
+
 // CloudTrailLogEntry is an invidual audit log stored in CloudTrail
 // which we query with Athena
 type CloudTrailLogEntry struct {
-	UserIdentity      *string
+	UserIdentity      CloudTrailUserIdentity
 	EventTime         *string
 	EventSource       *string
 	EventName         *string
@@ -59,7 +68,7 @@ func (a *CloudTrailAuditor) GetActionsForRole(ctx context.Context, account, role
 	assumedRoleARN := fmt.Sprintf("arn:aws:sts::%s:assumed-role/%s/%%", account, role)
 	roleARN := fmt.Sprintf("arn:aws:iam::%s:role/%s", account, role)
 
-	query := fmt.Sprintf(`SELECT useridentity, eventtime, eventsource, eventname, errorcode, errormessage, requestparameters
+	query := fmt.Sprintf(`SELECT useridentity.type, useridentity.principalid, useridentity.arn, useridentity.accountid, useridentity.invokedby, useridentity.sessioncontext.sessionissuer, eventtime, eventsource, eventname, errorcode, errormessage, requestparameters
 	FROM %s
 	WHERE useridentity.arn LIKE '%s'
 			OR useridentity.arn = '%s'
@@ -105,25 +114,39 @@ func (a *CloudTrailAuditor) GetActionsForRole(ctx context.Context, account, role
 		return err
 	}
 
-	entries := []CloudTrailLogEntry{}
+	agg := NewAggregator()
+
 	for i, r := range res.ResultSet.Rows {
 		if i == 0 {
 			continue
 		}
 		entry := CloudTrailLogEntry{
-			UserIdentity:      r.Data[0].VarCharValue,
-			EventTime:         r.Data[1].VarCharValue,
-			EventSource:       r.Data[2].VarCharValue,
-			EventName:         r.Data[3].VarCharValue,
-			ErrorCode:         r.Data[4].VarCharValue,
-			ErrorMessage:      r.Data[5].VarCharValue,
-			RequestParameters: r.Data[6].VarCharValue,
+			UserIdentity: CloudTrailUserIdentity{
+				Type:          r.Data[0].VarCharValue,
+				PrincipalID:   r.Data[1].VarCharValue,
+				ARN:           r.Data[2].VarCharValue,
+				AccountID:     r.Data[3].VarCharValue,
+				InvokedBy:     r.Data[4].VarCharValue,
+				SessionIssuer: r.Data[5].VarCharValue,
+			},
+			EventTime:         r.Data[6].VarCharValue,
+			EventSource:       r.Data[7].VarCharValue,
+			EventName:         r.Data[8].VarCharValue,
+			ErrorCode:         r.Data[9].VarCharValue,
+			ErrorMessage:      r.Data[10].VarCharValue,
+			RequestParameters: r.Data[11].VarCharValue,
 		}
-		entries = append(entries, entry)
+
+		err := agg.Read(entry)
+		if err != nil {
+			return err
+		}
 
 	}
 
-	a.log.With("entries", entries).Info("found entries")
+	events := agg.GetEvents()
+
+	a.log.With("events", events).Info("found events")
 
 	return nil
 }

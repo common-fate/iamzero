@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/common-fate/iamzero/pkg/audit"
+	"github.com/common-fate/iamzero/pkg/cloudtrail"
 	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
@@ -95,7 +96,7 @@ func (c *ScanCommand) Exec(ctx context.Context, args []string) error {
 
 	fmt.Printf("Querying CloudTrail logs for %s\n", c.roleName)
 
-	a := audit.NewCloudTrailAuditor(&audit.CloudTrailAuditorParams{
+	a := cloudtrail.NewCloudTrailAuditor(&cloudtrail.CloudTrailAuditorParams{
 		Log:                    log,
 		AthenaCloudTrailBucket: c.athenaCloudTrailBucket,
 		AthenaOutputLocation:   c.athenaResultsLocation,

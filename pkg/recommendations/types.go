@@ -1,6 +1,10 @@
 package recommendations
 
-import "github.com/common-fate/iamzero/pkg/audit"
+import (
+	"github.com/common-fate/iamzero/pkg/audit"
+
+	"github.com/mitchellh/hashstructure/v2"
+)
 
 const (
 	AlertActive   = "active"
@@ -12,12 +16,20 @@ const (
 // AWSEvent is an API call logged by an AWS SDK
 // instrumented with iamzero
 type AWSEvent struct {
-	Time     string      `json:"time"`
+	Time     string      `json:"time" hash:"ignore"`
 	Data     AWSData     `json:"data"`
 	Identity AWSIdentity `json:"identity"`
 }
 
+// HashEvent calculates a hash of the event so that we can deduplicate it.
+// We specifically don't hash the time by applying a `hash:"ignore"`
+// tag to the Time field in the AWSEvent struct
+func HashEvent(e AWSEvent) (uint64, error) {
+	return hashstructure.Hash(e, hashstructure.FormatV2, nil)
+}
+
 type AWSData struct {
+	// Type is either "awsAction" or "awsError"
 	Type             string                 `json:"type"`
 	Service          string                 `json:"service"`
 	Region           string                 `json:"region"`
