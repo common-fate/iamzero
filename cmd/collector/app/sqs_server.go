@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/common-fate/iamzero/pkg/events"
 	"github.com/common-fate/iamzero/pkg/recommendations"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/pkg/errors"
@@ -130,9 +131,9 @@ func (s *SQSServer) QueueUrl() string {
 }
 
 func (c *Collector) HandleSQSMessage(ctx context.Context, msg *types.Message) error {
-	var rec recommendations.AWSEvent
+	var e recommendations.AWSEvent
 
-	err := json.Unmarshal([]byte(*msg.Body), &rec)
+	err := json.Unmarshal([]byte(*msg.Body), &e)
 	if err != nil {
 		return errors.Wrap(err, "unmarshling SQS message body")
 	}
@@ -154,18 +155,16 @@ func (c *Collector) HandleSQSMessage(ctx context.Context, msg *types.Message) er
 		if token == nil {
 			return errors.New("token not found")
 		}
-	} else {
-		// ignore any token passed by the client
-		token = nil
 	}
 
-	advisor := recommendations.NewAdvisor(c.auditor)
-
-	_, err = c.handleRecommendation(handleRecommendationArgs{
-		Event:   rec,
-		Token:   token,
-		Advisor: advisor,
+	detective := events.NewDetective(events.DetectiveOpts{
+		Log:            c.log,
+		ActionStorage:  c.actionStorage,
+		FindingStorage: c.findingStorage,
+		Auditor:        c.auditor,
 	})
+
+	_, err = detective.AnalyseEvent(e)
 
 	if err != nil {
 		return err

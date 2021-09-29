@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/common-fate/iamzero/pkg/policies"
-	"github.com/common-fate/iamzero/pkg/tokens"
 )
 
 const (
@@ -17,7 +16,6 @@ type Finding struct {
 	ID          string                `json:"id" storm:"id"`
 	Identity    ProcessedAWSIdentity  `json:"identity"`
 	LastUpdated time.Time             `json:"lastUpdated"`
-	Token       *tokens.Token         `json:"token"`
 	EventCount  int                   `json:"eventCount"`
 	Document    policies.AWSIAMPolicy `json:"document"`
 	// CDKFinding  CDKFinding            `json:"cdkFinding"`

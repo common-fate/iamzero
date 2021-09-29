@@ -98,7 +98,6 @@ export interface Finding {
   id: string;
   identity: AWSIdentity;
   lastUpdated: Date;
-  token?: Token;
   eventCount: number;
   document: AWSIAMPolicy;
   status: PolicyStatus;
