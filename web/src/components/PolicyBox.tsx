@@ -1,7 +1,6 @@
-import { Flex, Heading, Stack, Text } from "@chakra-ui/layout";
-import { Badge, Box, Icon } from "@chakra-ui/react";
+import { Flex, Heading, Stack } from "@chakra-ui/layout";
+import { Badge, Box } from "@chakra-ui/react";
 import React from "react";
-import { FaUserAlt } from "react-icons/fa";
 import { Finding } from "../api-types";
 import { getEventCountString } from "../utils/getEventCountString";
 import { RelativeDateText } from "./LastUpdatedText";
@@ -29,11 +28,6 @@ export const PolicyBox: React.FC<Props> = ({ policy, onClick }) => {
         <Heading size="sm" textAlign="left">
           {policy.identity.role}
         </Heading>
-        {policy.token && (
-          <Text>
-            <Icon as={FaUserAlt} w="12px" /> {policy.token.name}
-          </Text>
-        )}
       </Stack>
       <Flex direction="column" justify="space-between" align="flex-end">
         <RelativeDateText textAlign="right" date={policy.lastUpdated} />

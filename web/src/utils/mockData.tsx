@@ -102,10 +102,6 @@ export const MOCK_POLICIES: Finding[] = [
     },
     eventCount: 31,
     lastUpdated: new Date(),
-    token: {
-      id: "1",
-      name: "Chris's laptop",
-    },
     document: {
       Version: "2012-10-17",
       Statement: [
@@ -130,10 +126,6 @@ export const MOCK_POLICIES: Finding[] = [
     },
     eventCount: 5,
     lastUpdated: new Date(),
-    token: {
-      id: "1",
-      name: "Chris's laptop",
-    },
     document: {
       Version: "2012-10-17",
       Statement: [
