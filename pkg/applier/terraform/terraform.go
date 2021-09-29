@@ -78,6 +78,9 @@ type StateFileResourceBlock struct {
 	ParentAddress    string
 }
 
+// FileHandler is used to manage opening and parsing HCL files for use during planning and applying
+//
+// This helper simplifies the process of making many changes to the same files and applying them all in a single step
 type FileHandler struct {
 	HclFiles map[string]*hclwrite.File
 }
@@ -86,6 +89,11 @@ type AwsIamBlock struct {
 	*hclwrite.Block
 }
 
+// TerraformIAMPolicyApplier implements the PolicyApplier interface
+//
+// an Applier instance is intended to operate on a single terraform project path
+//
+// To operate on a different project, create a new instance with a different project path
 type TerraformIAMPolicyApplier struct {
 	AWSIAMPolicyApplier applier.AWSIAMPolicyApplier
 	Finding             *TerraformFinding
@@ -95,13 +103,22 @@ type TerraformIAMPolicyApplier struct {
 
 var MAIN_TERRAFORM_FILE = "main.tf"
 
+// Returns a formatted name for the type of project this applier is for
+//
+// Used by the applier CLI to compose logging output
 func (t *TerraformIAMPolicyApplier) GetProjectName() string { return "Terraform" }
 
+// Initializes the FileHandler
+//
+// Attempts to read and parse the Terraform state for the project in the current working directory as specified by the
+// TerraformIAMPolicyApplier.AWSIAMPolicyApplier.ProjectPath
+//
+// Will return any errors encountered while loading the statefile
 func (t *TerraformIAMPolicyApplier) Init() error {
 	// Init File handler to manage reading and writing
 	t.FileHandler = &FileHandler{HclFiles: make(map[string]*hclwrite.File)}
 
-	// load the statefile
+	// load the statefile if found at TerraformIAMPolicyApplier.AWSIAMPolicyApplier.ProjectPath
 	stateFile, err := t.parseTerraformState()
 	if err != nil {
 		return err
@@ -110,18 +127,26 @@ func (t *TerraformIAMPolicyApplier) Init() error {
 	return nil
 }
 
+// tests wether the TerraformIAMPolicyApplier.AWSIAMPolicyApplier.ProjectPath contains a main.tf file
 func (t *TerraformIAMPolicyApplier) Detect() bool {
 	_, err := os.Stat(t.getRootFilePath())
 	return err == nil
 }
 
+// Processes policy and actions into a format that is simple for the applier to use
+// the result is stored internally
 func (t *TerraformIAMPolicyApplier) CalculateFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 	t.calculateTerraformFinding(policy, actions)
 }
+
+// This will return the results of applying the stored finding.
+//
+// The CalculateFinding method must be run before calling this method
 func (t *TerraformIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
 	return t.PlanTerraformFinding()
 }
 
+// This will write the pending changes to disk
 func (t *TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 	// Writes the changes to the files
 	for _, change := range *changes {
@@ -133,10 +158,12 @@ func (t *TerraformIAMPolicyApplier) Apply(changes *applier.PendingChanges) error
 	return nil
 }
 
+// Returns the full path to the root terraform main file
 func (t *TerraformIAMPolicyApplier) getRootFilePath() string {
 	return path.Join(t.AWSIAMPolicyApplier.ProjectPath, MAIN_TERRAFORM_FILE)
 }
 
+// Creates a single finding from enabled alerts
 func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
 
 	terraformFinding := TerraformFinding{
@@ -198,18 +225,36 @@ func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommenda
 	t.Finding = &terraformFinding
 }
 
+// Returns true if this StateFileResource is in the root directory by checking wether the address is prefixed with "module"
 func (sfr StateFileResource) IsInRoot() bool {
 	return strings.Split(sfr.Address, ".")[0] != "module"
 }
 
+// Returns an iamzero formatted variable name
+//
+// iamzero-variable_<resourceName>_<propertyType>
 func GenerateVariableName(resourceName string, propertyType string) string {
 	return strings.Join([]string{"iamzero-variable", resourceName, propertyType}, "_")
 }
 
+// Returns an iamzero formatted output name
+//
+// iamzero-output_<resourceName>_<propertyType>
 func GenerateOutputName(resourceName string, propertyType string) string {
 	return strings.Join([]string{"iamzero-output", resourceName, propertyType}, "_")
 }
 
+// Returns an hcl.Traversal which can be written to an hcl file without including quotes
+// This is used when setting an attribute value to a path to a module or variable etc
+//
+//  address should be a "." seperated string
+//
+// e.g "modules.ec2.my_server.arn"
+//
+//  can be applied to the attribute 'name' using block.Body().SetAttributeTraversal
+//
+//
+// resulting in 'name = modules.ec2.my_server.arn'
 func TraversalFromAddress(address string) hcl.Traversal {
 	splitAddress := strings.Split(address, ".")
 	traversal := hcl.Traversal{
@@ -221,10 +266,18 @@ func TraversalFromAddress(address string) hcl.Traversal {
 	return traversal
 }
 
-func AddInputToModuleDeclaration(block *hclwrite.Block, variableName string, resourcePath string) {
+// Appends an attribute to the provided Block
+// the result will be something like 'name = modules.ec2.my_server.arn'
+//
+// resourcePath should be a "." seperated string e.g "modules.ec2.my_server.arn"
+func AppendTraversalAttributeToBlock(block *hclwrite.Block, variableName string, resourcePath string) {
 	block.Body().SetAttributeTraversal(variableName, TraversalFromAddress(resourcePath))
 }
 
+// This is intended to be used when operating on a variables.tf file
+//
+// This function firsts inspects the file to find a variable that already exists with the same name
+// if it already exists, no changes are made, if it doesn exist it is appended to the body
 func AppendVariableBlockIfNotExist(body *hclwrite.Body, name string, description string) string {
 	block := FindBlockWithMatchingLabel(body.Blocks(), name)
 	if block != nil {
@@ -235,6 +288,12 @@ func AppendVariableBlockIfNotExist(body *hclwrite.Body, name string, description
 
 }
 
+// Appends a variable block of type string with name and description
+//
+// variable "name" {
+//  	type        = string
+//  	description = "description"
+// }
 func AppendVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("variable", []string{name})
@@ -244,6 +303,13 @@ func AppendVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 }
 
+// This is intended to be used when operating on a outputs.tf file
+//
+// this function firsts inspects the file to find an output that already exists with the same value
+//
+// if it already exists, no changes are made, and the name of the matched output is returned
+//
+// if it doesn exist it is appended to the body and the new name is returned
 func AppendOutputBlockIfNotExist(body *hclwrite.Body, name string, description string, value string) string {
 	block := FindBlockWithMatchingValueAttribute(body.Blocks(), value)
 	if block != nil {
@@ -253,6 +319,12 @@ func AppendOutputBlockIfNotExist(body *hclwrite.Body, name string, description s
 	return name
 }
 
+// Appends an output block of with name , value and description
+//
+// output "name" {
+//  	value        = value
+//  	description = "description"
+// }
 func AppendOutputBlock(body *hclwrite.Body, name string, description string, value string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("output", []string{name})
@@ -264,9 +336,9 @@ func AppendOutputBlock(body *hclwrite.Body, name string, description string, val
 	body.AppendNewline()
 }
 
+// Open file will open or create an empty hclfile
+// nothing is written to the filesystem by this method
 func (fh FileHandler) OpenFile(path string, createIfNotExist bool) (*hclwrite.File, error) {
-	// Open file will open or create an empty hclfile
-	// nothing is written to the filesystem by this method
 	if val, ok := fh.HclFiles[path]; ok {
 		return val, nil
 	}
@@ -279,6 +351,8 @@ func (fh FileHandler) OpenFile(path string, createIfNotExist bool) (*hclwrite.Fi
 
 }
 
+// This method will scan the statefile for any instances of teh provided role in a policy attachment resource
+// The policy attachment resource is then updated with the target role removed from the atachement policy
 func (t *TerraformIAMPolicyApplier) FindAndRemovePolicyAttachmentsForRole(stateFileRole StateFileResource) {
 	attachments := t.FindPolicyAttachmentsInStateFileByRoleName(stateFileRole.Values.Name)
 	for key, element := range attachments {
@@ -289,13 +363,11 @@ func (t *TerraformIAMPolicyApplier) FindAndRemovePolicyAttachmentsForRole(stateF
 			RemovePolicyAttachmentRole(policyAttachmentBlock, stateFileRole)
 		}
 	}
-
 }
 
+// return the formatted bytes for each open file
 func (t *TerraformIAMPolicyApplier) PendingChanges() *applier.PendingChanges {
-	/*
-		return the formatted bytes for each open file
-	*/
+
 	pc := applier.PendingChanges{}
 	for key, val := range t.FileHandler.HclFiles {
 		pc = append(pc, applier.PendingChange{Path: key, Contents: string(hclwrite.Format(val.Bytes()))})
@@ -411,7 +483,7 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 					moduleDefinitionInRoot = FindModuleBlockBySourcePath(rootHclFile.Body().Blocks(), iamRoleStateFileResource.FilePathFromRoot)
 
 					if moduleDefinitionInRoot != nil {
-						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, resourcePathInRootModule)
+						AppendTraversalAttributeToBlock(moduleDefinitionInRoot, variableName, resourcePathInRootModule)
 						arn = "var." + variableName
 					} else {
 						return fmt.Errorf("failed to find module block in file Root file for :%s", iamRoleStateFileResource.FilePathFromRoot)
@@ -453,7 +525,7 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 
 					moduleDefinitionInRoot := FindModuleBlockBySourcePath(rootHclFile.Body().Blocks(), iamRoleStateFileResource.FilePathFromRoot)
 					if moduleDefinitionInRoot != nil {
-						AddInputToModuleDeclaration(moduleDefinitionInRoot, variableName, awsResource.Address+".arn")
+						AppendTraversalAttributeToBlock(moduleDefinitionInRoot, variableName, awsResource.Address+".arn")
 						arn = "var." + variableName
 					} else {
 						return fmt.Errorf("failed to find module block in file Root file for :%s", iamRoleStateFileResource.FilePathFromRoot)
@@ -474,11 +546,11 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 			newInlinePolicies = append(newInlinePolicies, newBlock)
 		}
 	}
-	// some logic probably works out whether all existing policies need to go
+	// Remove all existing inline policies
 	for _, blockToRemove := range existingInlinePoliciesToRemove {
 		awsIamBlock.Body().RemoveBlock(blockToRemove)
 	}
-	// add the new blocks(inline policies) to this role
+	// append the new blocks(inline policies) to this role
 	for _, blockToAdd := range newInlinePolicies {
 		awsIamBlock.Body().AppendBlock(blockToAdd)
 	}
@@ -486,6 +558,9 @@ func (t *TerraformIAMPolicyApplier) ApplyFindingToBlock(awsIamBlock *AwsIamBlock
 
 }
 
+// Intended to be used on a policy attachment block
+// this function will attempt to find a matching role eather by a string litteral or a traversal
+// the role is removed and the attribute is updated
 func RemovePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileResource) {
 	line := string(block.Body().GetAttribute("roles").Expr().BuildTokens(hclwrite.Tokens{}).Bytes())
 	line = strings.Trim(line, " []")
@@ -503,11 +578,13 @@ func RemovePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileRe
 	toks := hclwrite.Tokens{&t}
 	block.Body().SetAttributeRaw("roles", toks)
 }
-func FindIamRoleBlockByModuleAddress(blocks []*hclwrite.Block, moduleAddress string) *AwsIamBlock {
-	//filters the blocks to find the target block by matching the address
-	// and address looks like "aws_iam_role.iamzero-overprivileged-role"
 
-	// for multiple files, this address will refer to the file by is path e.g "modules.ec2.aws_iam_role.role-name"
+//filters the blocks to find the target block by matching the address
+// and address looks like "aws_iam_role.iamzero-overprivileged-role"
+//
+// for multiple files, this address will refer to the file by is path e.g "modules.ec2.aws_iam_role.role-name"
+func FindIamRoleBlockByModuleAddress(blocks []*hclwrite.Block, moduleAddress string) *AwsIamBlock {
+
 	for _, block := range blocks {
 		if IsBlockAwsIamRole(block) {
 			if resourceLabelToString(block.Labels()) == moduleAddress {
@@ -531,6 +608,7 @@ func FindModuleBlockBySourcePath(blocks []*hclwrite.Block, moduleFolderPath stri
 	return nil
 }
 
+// address should be a "." separated string "modules.ec2.example"
 func FindBlockByModuleAddress(blocks []*hclwrite.Block, moduleAddress string) *hclwrite.Block {
 	for _, block := range blocks {
 		if resourceLabelToString(block.Labels()) == moduleAddress {
@@ -640,12 +718,11 @@ func (t *TerraformIAMPolicyApplier) FindResourceInStateFileBase(value string, at
 	}
 	return StateFileResourceBlock{StateFileResource{}, "", "", ""}, fmt.Errorf("could not find a matching resource in the state file for %s", value)
 }
-func (t *TerraformIAMPolicyApplier) parseTerraformState() (*StateFile, error) {
-	// var terraformShow = []byte(`{"format_version":"0.1","terraform_version":"0.14.9","values":{"root_module":{"resources":[{"address":"aws_iam_role.iamzero-overprivileged-role","mode":"managed","type":"aws_iam_role","name":"iamzero-overprivileged-role","provider_name":"registry.terraform.io/hashicorp/aws","schema_version":0,"values":{"arn":"arn:aws:iam::312231318920:role/iamzero-tf-overprivileged-role","assume_role_policy":"{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::312231318920:root\"},\"Action\":\"sts:AssumeRole\"}]}","create_date":"2021-09-03T03:30:22Z","description":"","force_detach_policies":false,"id":"iamzero-tf-overprivileged-role","inline_policy":[{"name":"tf-example-policy","policy":"{\"Statement\":[{\"Action\":[\"*\"],\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}"}],"managed_policy_arns":[],"max_session_duration":3600,"name":"iamzero-tf-overprivileged-role","name_prefix":null,"path":"/","permissions_boundary":null,"tags":{},"tags_all":{},"unique_id":"AROAURMTP2WECJCRJBHTS"}},{"address":"aws_s3_bucket.iamzero-tf-example-bucket","mode":"managed","type":"aws_s3_bucket","name":"iamzero-tf-example-bucket","provider_name":"registry.terraform.io/hashicorp/aws","schema_version":0,"values":{"acceleration_status":"","acl":"private","arn":"arn:aws:s3:::iamzero-tf-example-bucket","bucket":"iamzero-tf-example-bucket","bucket_domain_name":"iamzero-tf-example-bucket.s3.amazonaws.com","bucket_prefix":null,"bucket_regional_domain_name":"iamzero-tf-example-bucket.s3.ap-southeast-2.amazonaws.com","cors_rule":[],"force_destroy":false,"grant":[],"hosted_zone_id":"Z1WCIGYICN2BYD","id":"iamzero-tf-example-bucket","lifecycle_rule":[],"logging":[],"object_lock_configuration":[],"policy":null,"region":"ap-southeast-2","replication_configuration":[],"request_payer":"BucketOwner","server_side_encryption_configuration":[],"tags":{},"tags_all":{},"versioning":[{"enabled":false,"mfa_delete":false}],"website":[],"website_domain":null,"website_endpoint":null}}]}}}`)
 
-	// return MarshalStateFileToGo(terraformShow)
-	// need to be in the root of the terraform repo for this to work
-	// doing this gets the correct state for us,alternative would be to copy this code from teh terraform repo
+// This method will attempt to run `terraform init` and `terraform show` cli commands with the directory path specified by TerraformIAMPolicyApplier.AWSIAMPolicyApplier.ProjectPath
+// These function will correctly fetch the state from either local or external state management, assuming the correct credentials exist for remote state
+func (t *TerraformIAMPolicyApplier) parseTerraformState() (*StateFile, error) {
+
 	// JSON output via the -json option requires Terraform v0.12 or later.
 	// https://www.terraform.io/docs/cli/commands/show.html
 	_, err := exec.Command("terraform", "-chdir=./"+t.AWSIAMPolicyApplier.ProjectPath, "init").Output()
@@ -668,9 +745,10 @@ func MarshalStateFileToGo(stateFileBytes []byte) (*StateFile, error) {
 	return &stateFile, nil
 }
 
+// Strips any leading or training whitespace from the Expression value of the attribute
+// check for an exact match
 func StringCompareAttributeValue(attribute *hclwrite.Attribute, compareTo string) bool {
-	// Strip any leading or training whitespace from the Expression value or the attribute
-	// check for an exact match
+
 	att := strings.Trim(string(attribute.Expr().BuildTokens(hclwrite.Tokens{}).Bytes()), " ")
 	if strings.Trim(att, `"`) == att {
 		// attribute is likely a function or reference not a string litteral
@@ -700,11 +778,9 @@ func setInlinePolicyIamPolicy(block *hclwrite.Block, action string, resource str
 	block.Body().SetAttributeValue("name", cty.StringVal(name))
 }
 
-/*
-if createIfNotExist is true then this function will return a new empty hclwrite file if it is not found at the path
-
-returns fileCreated(bool), file, error
-*/
+// if createIfNotExist is true then this function will return a new empty hclwrite file if it is not found at the path
+//
+// returns fileCreated(bool), file, error
 func OpenAndParseHclFile(filePath string, createIfNotExist bool) (bool, *hclwrite.File, error) {
 
 	// read file bytes
