@@ -74,6 +74,13 @@ func (c *Collector) HTTPCreateEventBatchHandler(w http.ResponseWriter, r *http.R
 
 	var res CreateEventBatchResponse
 	for _, e := range rec {
+		// censor info if in demo mode
+		if c.demo {
+			e.Identity.User = "iamzero-test-user"
+			e.Identity.Role = "arn:aws:iam::123456789012:role/iamzero-test-role"
+			e.Identity.Account = "123456789012"
+		}
+
 		action, err := c.handleRecommendation(handleRecommendationArgs{
 			Event:   e,
 			Token:   token,
@@ -112,13 +119,6 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 	}
 	if iamRole != nil {
 		e.Identity.Role = *iamRole
-	}
-
-	// censor info if in demo mode
-	if c.demo {
-		e.Identity.User = "iamzero-test-user"
-		e.Identity.Role = "arn:aws:iam::123456789012:role/iamzero-test-role"
-		e.Identity.Account = "123456789012"
 	}
 
 	// see whether we have an infrastructure-as-code definition for the role in question
