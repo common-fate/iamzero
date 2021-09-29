@@ -111,12 +111,12 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 	}
 
 	if err := c.Console.Start(&consoleApp.ConsoleOptions{
-		Logger:        log,
-		Tracer:        tracer,
-		TokenStore:    store,
-		ActionStorage: actionStorage,
-		PolicyStorage: policyStorage,
-		Auditor:       c.Auditor,
+		Logger:         log,
+		Tracer:         tracer,
+		TokenStore:     store,
+		ActionStorage:  actionStorage,
+		FindingStorage: policyStorage,
+		Auditor:        c.Auditor,
 	}); err != nil {
 		return err
 	}

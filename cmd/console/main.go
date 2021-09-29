@@ -78,11 +78,11 @@ func (c *ConsoleCommand) Exec(ctx context.Context, _ []string) error {
 	console := c.Collector
 
 	if err := console.Start(&app.ConsoleOptions{
-		Logger:        log,
-		Tracer:        tracer,
-		TokenStore:    store,
-		ActionStorage: actionStorage,
-		PolicyStorage: policyStorage,
+		Logger:         log,
+		Tracer:         tracer,
+		TokenStore:     store,
+		ActionStorage:  actionStorage,
+		FindingStorage: policyStorage,
 	}); err != nil {
 		return err
 	}

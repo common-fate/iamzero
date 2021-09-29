@@ -182,7 +182,7 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 	}
 
 	actionStorage := storage.NewBoltActionStorage(db)
-	policyStorage := storage.NewBoltFindingStorage(db)
+	findingStorage := storage.NewBoltFindingStorage(db)
 
 	c.Auditor.Setup(log)
 
@@ -191,19 +191,19 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 		Tracer:         tracer,
 		TokenStore:     tokenStore,
 		ActionStorage:  actionStorage,
-		FindingStorage: policyStorage,
+		FindingStorage: findingStorage,
 		Auditor:        c.Auditor,
 	}); err != nil {
 		return err
 	}
 
 	if err := c.Console.Start(&consoleApp.ConsoleOptions{
-		Logger:        log,
-		Tracer:        tracer,
-		TokenStore:    tokenStore,
-		ActionStorage: actionStorage,
-		PolicyStorage: policyStorage,
-		Auditor:       c.Auditor,
+		Logger:         log,
+		Tracer:         tracer,
+		TokenStore:     tokenStore,
+		ActionStorage:  actionStorage,
+		FindingStorage: findingStorage,
+		Auditor:        c.Auditor,
 	}); err != nil {
 		return err
 	}

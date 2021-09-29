@@ -17,7 +17,7 @@ func (c *Console) GetConsoleRoutes() *chi.Mux {
 		Log:            c.log,
 		TokenStore:     c.tokenStore,
 		ActionStorage:  c.actionStorage,
-		FindingStorage: c.policyStorage,
+		FindingStorage: c.findingStorage,
 		Auditor:        c.auditor,
 	}
 
