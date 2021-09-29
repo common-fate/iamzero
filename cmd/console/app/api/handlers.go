@@ -9,9 +9,9 @@ import (
 
 // Handlers holds all of the REST API endpoints for the console
 type Handlers struct {
-	Log           *zap.SugaredLogger
-	TokenStore    tokens.TokenStorer
-	ActionStorage storage.ActionStorage
-	PolicyStorage storage.PolicyStorage
-	Auditor       *audit.Auditor
+	Log            *zap.SugaredLogger
+	TokenStore     tokens.TokenStorer
+	ActionStorage  storage.ActionStorage
+	FindingStorage storage.FindingStorage
+	Auditor        *audit.Auditor
 }

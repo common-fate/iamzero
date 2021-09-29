@@ -16,47 +16,47 @@ func (h *Handlers) ListPolicies(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	status := r.URL.Query().Get("status")
 
-	var policies []recommendations.Policy
+	var findings []recommendations.Finding
 
 	var err error
 	if status != "" {
-		if ok := recommendations.PolicyStatusIsValid(status); !ok {
-			http.Error(w, "policy status must be 'active' or 'resolved'", http.StatusBadRequest)
+		if ok := recommendations.FindingStatusIsValid(status); !ok {
+			http.Error(w, "finding status must be 'active' or 'resolved'", http.StatusBadRequest)
 			return
 		}
-		policies, err = h.PolicyStorage.ListForStatus(status)
+		findings, err = h.FindingStorage.ListForStatus(status)
 	} else {
-		policies, err = h.PolicyStorage.List()
+		findings, err = h.FindingStorage.List()
 	}
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}
 
-	io.RespondJSON(ctx, h.Log, w, policies, http.StatusOK)
+	io.RespondJSON(ctx, h.Log, w, findings, http.StatusOK)
 }
 
-func (h *Handlers) GetPolicy(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetFinding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	policyID := chi.URLParam(r, "policyID")
-	policy, err := h.PolicyStorage.Get(policyID)
+	findingID := chi.URLParam(r, "policyID")
+	finding, err := h.FindingStorage.Get(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}
 
-	if policy == nil {
+	if finding == nil {
 		http.Error(w, "policy not found", http.StatusNotFound)
 	} else {
 
-		io.RespondJSON(ctx, h.Log, w, policy, http.StatusOK)
+		io.RespondJSON(ctx, h.Log, w, finding, http.StatusOK)
 	}
 }
 
-func (h *Handlers) ListActionsForPolicy(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) ListActionsForFinding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	policyID := chi.URLParam(r, "policyID")
-	alerts, err := h.ActionStorage.ListForPolicy(policyID)
+	findingID := chi.URLParam(r, "policyID")
+	alerts, err := h.ActionStorage.ListForPolicy(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -68,8 +68,8 @@ type setPolicyStatusBody struct {
 	Status string `json:"status"`
 }
 
-// FindPolicy finds a policy by its role and status
-func (h *Handlers) FindPolicy(w http.ResponseWriter, r *http.Request) {
+// FindFinding finds a finding by its role and status
+func (h *Handlers) FindFinding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	role := r.URL.Query().Get("role")
 	status := r.URL.Query().Get("status")
@@ -79,22 +79,22 @@ func (h *Handlers) FindPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.PolicyStorage.FindByRole(storage.FindByRoleQuery{Role: role, Status: status})
+	finding, err := h.FindingStorage.FindByRole(storage.FindByRoleQuery{Role: role, Status: status})
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}
 
-	if policy == nil {
+	if finding == nil {
 		http.Error(w, "policy not found", http.StatusNotFound)
 	} else {
-		io.RespondJSON(ctx, h.Log, w, policy, http.StatusOK)
+		io.RespondJSON(ctx, h.Log, w, finding, http.StatusOK)
 	}
 }
 
-func (h *Handlers) SetPolicyStatus(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) SetFindingStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	policyID := chi.URLParam(r, "policyID")
+	findingID := chi.URLParam(r, "policyID")
 
 	var b setPolicyStatusBody
 
@@ -103,28 +103,28 @@ func (h *Handlers) SetPolicyStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok := recommendations.PolicyStatusIsValid(b.Status); !ok {
-		http.Error(w, "policy status must be 'active' or 'resolved'", http.StatusBadRequest)
+	if ok := recommendations.FindingStatusIsValid(b.Status); !ok {
+		http.Error(w, "finding status must be 'active' or 'resolved'", http.StatusBadRequest)
 		return
 	}
 
-	policy, err := h.PolicyStorage.Get(policyID)
+	finding, err := h.FindingStorage.Get(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}
 
-	if policy == nil {
-		http.Error(w, "policy not found", http.StatusNotFound)
+	if finding == nil {
+		http.Error(w, "finding not found", http.StatusNotFound)
 		return
 	}
 
-	policy.Status = b.Status
+	finding.Status = b.Status
 
-	err = h.PolicyStorage.CreateOrUpdate(*policy)
+	err = h.FindingStorage.CreateOrUpdate(*finding)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 	}
 
-	io.RespondJSON(ctx, h.Log, w, policy, http.StatusOK)
+	io.RespondJSON(ctx, h.Log, w, finding, http.StatusOK)
 }

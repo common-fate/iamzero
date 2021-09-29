@@ -83,7 +83,7 @@ func (t *CDKIAMPolicyApplier) Detect() bool {
 	_, errCdk := os.Stat(path.Join(t.AWSIAMPolicyApplier.ProjectPath, "cdk.json"))
 	return os.IsExist(errCdk)
 }
-func (t *CDKIAMPolicyApplier) CalculateFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
+func (t *CDKIAMPolicyApplier) CalculateFinding(policy *recommendations.Finding, actions []recommendations.AWSAction) {
 	t.calculateCDKFinding(policy, actions)
 
 }
@@ -129,7 +129,7 @@ func (t *CDKIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 	return nil
 }
 
-func (t *CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
+func (t *CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Finding, actions []recommendations.AWSAction) {
 	// only derive a CDK finding if we know that the role that we are
 	// giving recommendations for has been defined using CDK
 	if policy.Identity.CDKResource == nil {

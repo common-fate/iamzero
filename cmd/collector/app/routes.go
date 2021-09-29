@@ -136,15 +136,15 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 	cdkResource := c.auditor.GetCDKResourceByPhysicalID(physicalID)
 	c.log.With("cdkResource", cdkResource, "physicalID", physicalID).Debug("looked up CDK resource")
 
-	// try and find an existing policy
-	policy, err := c.policyStorage.FindByRole(storage.FindByRoleQuery{
+	// try and find an existing finding
+	finding, err := c.findingStorage.FindByRole(storage.FindByRoleQuery{
 		Role:   e.Identity.Role,
 		Status: recommendations.PolicyStatusActive,
 	})
 	if err != nil {
 		return nil, err
 	}
-	if policy == nil {
+	if finding == nil {
 		identity := recommendations.ProcessedAWSIdentity{
 			User:        e.Identity.User,
 			Role:        e.Identity.Role,
@@ -153,7 +153,7 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 		}
 
 		// create a new policy for the token and role if it doesn't exist
-		policy = &recommendations.Policy{
+		finding = &recommendations.Finding{
 			ID:          uuid.NewString(),
 			Identity:    identity,
 			LastUpdated: time.Now(),
@@ -176,7 +176,7 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 
 	action := recommendations.AWSAction{
 		ID:                 uuid.NewString(),
-		PolicyID:           policy.ID,
+		PolicyID:           finding.ID,
 		Event:              e,
 		Status:             recommendations.AlertActive,
 		Time:               time.Now(),
@@ -200,13 +200,13 @@ func (c *Collector) handleRecommendation(args handleRecommendationArgs) (*recomm
 		return nil, err
 	}
 
-	actions, err := c.actionStorage.ListForPolicy(policy.ID)
+	actions, err := c.actionStorage.ListForPolicy(finding.ID)
 	if err != nil {
 		return nil, err
 	}
-	policy.RecalculateDocument(actions)
+	finding.RecalculateDocument(actions)
 
-	err = c.policyStorage.CreateOrUpdate(*policy)
+	err = c.findingStorage.CreateOrUpdate(*finding)
 	if err != nil {
 		return nil, err
 	}

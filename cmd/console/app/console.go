@@ -18,7 +18,7 @@ type Console struct {
 	tracer        trace.Tracer
 	tokenStore    tokens.TokenStorer
 	actionStorage storage.ActionStorage
-	policyStorage storage.PolicyStorage
+	policyStorage storage.FindingStorage
 	auditor       *audit.Auditor
 
 	Host string
@@ -36,7 +36,7 @@ type ConsoleOptions struct {
 	Tracer        trace.Tracer
 	TokenStore    tokens.TokenStorer
 	ActionStorage storage.ActionStorage
-	PolicyStorage storage.PolicyStorage
+	PolicyStorage storage.FindingStorage
 	Auditor       *audit.Auditor
 }
 

@@ -105,7 +105,7 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.PolicyStorage.Get(action.PolicyID)
+	policy, err := h.FindingStorage.Get(action.PolicyID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -139,7 +139,7 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	policy.RecalculateDocument(actions)
-	if err := h.PolicyStorage.CreateOrUpdate(*policy); err != nil {
+	if err := h.FindingStorage.CreateOrUpdate(*policy); err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}

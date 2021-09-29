@@ -119,7 +119,7 @@ func (c *ApplyCommand) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
-	policyStorage := storage.NewBoltPolicyStorage(db)
+	policyStorage := storage.NewBoltFindingStorage(db)
 	actionStorage := storage.NewBoltActionStorage(db)
 	findings, err := policyStorage.ListForStatus("active")
 	if err != nil {

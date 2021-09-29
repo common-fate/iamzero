@@ -28,7 +28,7 @@ func OpenBoltDB() (*storm.DB, error) {
 		return nil, err
 	}
 
-	err = db.Init(recommendations.Policy{})
+	err = db.Init(recommendations.Finding{})
 	if err != nil {
 		return nil, err
 	}

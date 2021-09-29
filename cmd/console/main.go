@@ -73,7 +73,7 @@ func (c *ConsoleCommand) Exec(ctx context.Context, _ []string) error {
 
 	// TODO: shift these to be configurable factories, similar to TokenStoreFactory
 	actionStorage := storage.NewInMemoryActionStorage()
-	policyStorage := storage.NewInMemoryPolicyStorage()
+	policyStorage := storage.NewInMemoryFindingStorage()
 
 	console := c.Collector
 

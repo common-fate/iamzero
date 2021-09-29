@@ -135,7 +135,7 @@ func (t *TerraformIAMPolicyApplier) Detect() bool {
 
 // Processes policy and actions into a format that is simple for the applier to use
 // the result is stored internally
-func (t *TerraformIAMPolicyApplier) CalculateFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
+func (t *TerraformIAMPolicyApplier) CalculateFinding(policy *recommendations.Finding, actions []recommendations.AWSAction) {
 	t.calculateTerraformFinding(policy, actions)
 }
 
@@ -164,7 +164,7 @@ func (t *TerraformIAMPolicyApplier) getRootFilePath() string {
 }
 
 // Creates a single finding from enabled alerts
-func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Policy, actions []recommendations.AWSAction) {
+func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Finding, actions []recommendations.AWSAction) {
 
 	terraformFinding := TerraformFinding{
 		FindingID: policy.ID,
