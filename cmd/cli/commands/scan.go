@@ -2,17 +2,19 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 
 	collectorApp "github.com/common-fate/iamzero/cmd/collector/app"
 	consoleApp "github.com/common-fate/iamzero/cmd/console/app"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/common-fate/iamzero/pkg/audit"
 	"github.com/common-fate/iamzero/pkg/cloudtrail"
+	"github.com/common-fate/iamzero/pkg/events"
+	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
@@ -94,12 +96,30 @@ func (c *ScanCommand) Exec(ctx context.Context, args []string) error {
 		return errors.New("the -account argument must be provided")
 	}
 
+	db, err := storage.OpenBoltDB()
+	if err != nil {
+		return errors.Wrap(err, "error opening local database, ensure that you are not running 'iamzero local'")
+	}
+
+	actionStorage := storage.NewBoltActionStorage(db)
+	findingStorage := storage.NewBoltFindingStorage(db)
+
+	c.Auditor.Setup(log)
+
 	fmt.Printf("Querying CloudTrail logs for %s\n", c.roleName)
+
+	detective := events.NewDetective(events.DetectiveOpts{
+		Log:            log,
+		Auditor:        c.Auditor,
+		ActionStorage:  actionStorage,
+		FindingStorage: findingStorage,
+	})
 
 	a := cloudtrail.NewCloudTrailAuditor(&cloudtrail.CloudTrailAuditorParams{
 		Log:                    log,
 		AthenaCloudTrailBucket: c.athenaCloudTrailBucket,
 		AthenaOutputLocation:   c.athenaResultsLocation,
+		Detective:              detective,
 	})
 	err = a.GetActionsForRole(ctx, c.account, c.roleName)
 	if err != nil {

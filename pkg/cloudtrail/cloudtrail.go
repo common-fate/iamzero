@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/athena"
 	"github.com/aws/aws-sdk-go-v2/service/athena/types"
+	"github.com/common-fate/iamzero/pkg/events"
 	"go.uber.org/zap"
 )
 
@@ -16,12 +17,14 @@ import (
 // via Athena
 type CloudTrailAuditor struct {
 	log                    *zap.SugaredLogger
+	detective              *events.Detective
 	athenaCloudTrailBucket string
 	athenaOutputLocation   string
 }
 
 type CloudTrailAuditorParams struct {
 	Log                    *zap.SugaredLogger
+	Detective              *events.Detective
 	AthenaCloudTrailBucket string
 	AthenaOutputLocation   string
 }
@@ -31,6 +34,7 @@ func NewCloudTrailAuditor(params *CloudTrailAuditorParams) *CloudTrailAuditor {
 		log:                    params.Log,
 		athenaCloudTrailBucket: params.AthenaCloudTrailBucket,
 		athenaOutputLocation:   params.AthenaOutputLocation,
+		detective:              params.Detective,
 	}
 }
 
@@ -146,7 +150,16 @@ func (a *CloudTrailAuditor) GetActionsForRole(ctx context.Context, account, role
 
 	events := agg.GetEvents()
 
-	a.log.With("events", events).Info("found events")
+	a.log.With("events", events).Debug("found events")
+
+	for _, e := range events {
+		_, err := a.detective.AnalyseEvent(e)
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("💡 We found %d events by analysing your CloudTrail log. You can run \"iamzero local\" to view findings", len(events))
 
 	return nil
 }
