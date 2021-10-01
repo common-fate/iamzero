@@ -41,7 +41,9 @@ func (p *PostgresStorage) Connect() (*sqlx.DB, error) {
 
 	db, err := sqlx.Connect("postgres", psqlInfo)
 	if err != nil {
-		return nil, errors.Wrap(err, "connecting to postgres")
+		return nil, errors.Wrap(err, "connecting to postgres with these params : "+fmt.Sprintf("host=%s port=%d user=%s "+
+			"password=**hidden** dbname=%s sslmode=%s",
+			p.Host, p.Port, p.User, p.Database, p.SSLMode))
 	}
 	return db, nil
 }
