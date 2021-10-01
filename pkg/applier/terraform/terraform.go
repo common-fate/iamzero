@@ -404,7 +404,10 @@ func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChan
 	awsIamBlock := FindIamRoleBlockByModuleAddress(hclFile.Body().Blocks(), iamRoleStateFileResource.Type+"."+iamRoleStateFileResource.Name)
 	if awsIamBlock != nil {
 		// Remove any managed policy attachments for this role
-		t.FindAndRemovePolicyAttachmentsForRole(iamRoleStateFileResource.StateFileResource)
+		err := t.FindAndRemovePolicyAttachmentsForRole(iamRoleStateFileResource.StateFileResource)
+		if err != nil {
+			return nil, err
+		}
 		rootHclFile, err := t.FileHandler.OpenFile(t.getRootFilePath(), false)
 		if err != nil {
 			return nil, err
