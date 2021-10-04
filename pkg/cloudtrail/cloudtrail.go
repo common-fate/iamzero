@@ -78,6 +78,8 @@ func (a *CloudTrailAuditor) GetActionsForRole(ctx context.Context, account, role
 			OR useridentity.arn = '%s'
 `, a.athenaCloudTrailBucket, assumedRoleARN, roleARN)
 
+	a.log.With("query", query).Debug("constructed query")
+
 	out, err := svc.StartQueryExecution(ctx, &athena.StartQueryExecutionInput{
 		QueryString: &query,
 		ResultConfiguration: &types.ResultConfiguration{
@@ -121,6 +123,7 @@ func (a *CloudTrailAuditor) GetActionsForRole(ctx context.Context, account, role
 	agg := NewAggregator()
 
 	for i, r := range res.ResultSet.Rows {
+		a.log.With("row", res.ResultSet.Rows).Debug("row from query")
 		if i == 0 {
 			continue
 		}
