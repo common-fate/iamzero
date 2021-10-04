@@ -120,6 +120,15 @@ func NewAdvisor(auditor *audit.Auditor) *Advisor {
 					Comment: "Allow access to the bucket",
 				},
 			},
+			"s3:ListObjects": {
+				AdvisoryTemplate{
+					Policy: []Statement{{
+						Action:   []string{"s3:GetObject"},
+						Resource: []string{"arn:aws:s3:::{{ .Bucket }}/*"},
+					}},
+					Comment: "Allow access to the bucket",
+				},
+			},
 			"s3:ListBuckets": {
 				AdvisoryTemplate{
 					Policy: []Statement{{

@@ -45,6 +45,31 @@ func (c *CloudTrailLogEntry) TryConvertToEvent() (*recommendations.AWSEvent, err
 			}
 			return &event, nil
 		}
+		if safeStringEquals(c.EventName, "ListObjects") {
+			var params map[string]string
+			err := json.Unmarshal([]byte(*c.RequestParameters), &params)
+			if err != nil {
+				return nil, errors.Wrap(err, "unmarshalling params")
+			}
+
+			event := recommendations.AWSEvent{
+				Time: *c.EventTime,
+				Identity: recommendations.AWSIdentity{
+					User:    *c.UserIdentity.PrincipalID,
+					Role:    *c.UserIdentity.ARN,
+					Account: *c.UserIdentity.AccountID,
+				},
+				Data: recommendations.AWSData{
+					Type:      "awsAction",
+					Service:   "s3",
+					Operation: "ListObjects",
+					Parameters: map[string]interface{}{
+						"Bucket": params["bucketName"],
+					},
+				},
+			}
+			return &event, nil
+		}
 	}
 	// we weren't able to convert the log entry into an event
 	return nil, ErrNoMapping
