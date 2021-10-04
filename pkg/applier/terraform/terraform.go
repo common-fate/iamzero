@@ -767,7 +767,7 @@ func (t *TerraformIAMPolicyApplier) ParseTerraformState() (*StateFile, error) {
 	}
 	terraform := mainFile.Body().FirstMatchingBlock("terraform", []string{})
 	if terraform == nil {
-		return nil, errors.New("could not find terraform block while trying to prase terraform state")
+		return nil, errors.New("could not find terraform block while trying to parse terraform state")
 	}
 	block := terraform.Body().FirstMatchingBlock("backend", []string{"s3"})
 	if block == nil {
