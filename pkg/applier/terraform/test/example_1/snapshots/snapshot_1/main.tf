@@ -1,9 +1,4 @@
 terraform {
-  backend "s3" {
-    bucket = "tf-remote-state-demo-bucket"
-    key    = "path/to/my/key"
-    region = "ap-southeast-2"
-  }
   required_providers {
     aws = {
       source  = "hashicorp/aws"
