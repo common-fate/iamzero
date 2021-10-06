@@ -345,14 +345,15 @@ func (t *TerraformIAMPolicyApplier) IsBlockInRoot(b *Block) bool {
 //
 // iamzero-variable_<resourceName>_<propertyType>
 func GenerateVariableName(resourceName string, propertyType string) string {
-	return strings.Join([]string{"iamzero-variable", resourceName, propertyType}, "_")
+	return strings.ReplaceAll(strings.Join([]string{"iamzero-variable", resourceName, propertyType}, "_"), ".", "_")
+
 }
 
 // Returns an iamzero formatted output name
 //
 // iamzero-output_<resourceName>_<propertyType>
 func GenerateOutputName(resourceName string, propertyType string) string {
-	return strings.Join([]string{"iamzero-output", resourceName, propertyType}, "_")
+	return strings.ReplaceAll(strings.Join([]string{"iamzero-output", resourceName, propertyType}, "_"), ".", "_")
 }
 
 // Returns an hcl.Traversal which can be written to an hcl file without including quotes
@@ -408,7 +409,7 @@ func AppendVariableBlockIfNotExist(body *hclwrite.Body, name string, description
 func AppendVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("variable", []string{name})
-	newBlock.Body().SetAttributeValue("type", cty.StringVal("string"))
+	newBlock.Body().SetAttributeRaw("type", StringToHclwriteTokensWithoutQuotes("string"))
 	newBlock.Body().SetAttributeValue("description", cty.StringVal(description))
 	body.AppendBlock(newBlock)
 	body.AppendNewline()
@@ -439,12 +440,15 @@ func AppendOutputBlockIfNotExist(body *hclwrite.Body, name string, description s
 func AppendOutputBlock(body *hclwrite.Body, name string, description string, value string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("output", []string{name})
-	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(value)}
-	toks := hclwrite.Tokens{&t}
-	newBlock.Body().SetAttributeRaw("value", toks)
+	newBlock.Body().SetAttributeRaw("value", StringToHclwriteTokensWithoutQuotes(value))
 	newBlock.Body().SetAttributeValue("description", cty.StringVal(description))
 	body.AppendBlock(newBlock)
 	body.AppendNewline()
+}
+
+func StringToHclwriteTokensWithoutQuotes(str string) hclwrite.Tokens {
+	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(str)}
+	return hclwrite.Tokens{&t}
 }
 
 // Open file will open or create an empty hclfile
@@ -700,9 +704,7 @@ func RemovePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileRe
 		}
 	}
 
-	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(fmt.Sprintf(`[%s]`, strings.Join(filteredRoles, ",")))}
-	toks := hclwrite.Tokens{&t}
-	block.Body().SetAttributeRaw("roles", toks)
+	block.Body().SetAttributeRaw("roles", StringToHclwriteTokensWithoutQuotes(fmt.Sprintf(`[%s]`, strings.Join(filteredRoles, ","))))
 }
 
 func FindBlockWithMatchingValueAttribute(blocks []*hclwrite.Block, valueString string) *hclwrite.Block {
@@ -865,7 +867,7 @@ func MarshalStateFileToGo(stateFileBytes []byte) (*StateFile, error) {
 func setInlinePolicyIamPolicy(block *hclwrite.Block, action string, resource string, name string) {
 	// @TODO if hclwrite add a simple way to write function values like this we may switch over,
 	// However for now it seems this is the simplest way to add a function block to HCL using the hclwite package
-	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(fmt.Sprintf(`jsonencode({
+	str := fmt.Sprintf(`jsonencode({
         Version = "2012-10-17"
         Statement = [
           {
@@ -874,9 +876,8 @@ func setInlinePolicyIamPolicy(block *hclwrite.Block, action string, resource str
             Resource = %s
           },
         ]
-      })`, action, resource))}
-	toks := hclwrite.Tokens{&t}
-	block.Body().SetAttributeRaw("policy", toks)
+      })`, action, resource)
+	block.Body().SetAttributeRaw("policy", StringToHclwriteTokensWithoutQuotes(str))
 	block.Body().SetAttributeValue("name", cty.StringVal(name))
 }
 
