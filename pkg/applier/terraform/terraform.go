@@ -2,6 +2,7 @@ package applier
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,9 +13,10 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"github.com/common-fate/iamzero/pkg/applier"
 	"github.com/common-fate/iamzero/pkg/policies"
@@ -97,6 +99,9 @@ type TerraformIAMPolicyApplier struct {
 	Finding             *TerraformFinding
 	FileHandler         *FileHandler
 	StateFile           *StateFile
+	// Define a role to assume when attempting to fetch remote state from s3, alternatively
+	// don't set this attribute and the default aws credentials will be used if available
+	AssumeRole *string
 }
 
 var MAIN_TERRAFORM_FILE = "main.tf"
@@ -128,6 +133,8 @@ func (t *TerraformIAMPolicyApplier) Init() error {
 
 // tests wether the TerraformIAMPolicyApplier.AWSIAMPolicyApplier.ProjectPath contains a main.tf file
 func (t *TerraformIAMPolicyApplier) Detect() bool {
+
+	fmt.Printf("t.getRootFilePath(): %v\n", t.getRootFilePath())
 	_, err := os.Stat(t.getRootFilePath())
 	return err == nil
 }
@@ -776,7 +783,7 @@ func (t *TerraformIAMPolicyApplier) ParseTerraformState() (*StateFile, error) {
 		}
 	} else {
 		// fetch state file from s3
-		stateFileBytes, err := FetchStateFileFromS3BackendBlockDefinition(block)
+		stateFileBytes, err := FetchStateFileFromS3BackendBlockDefinition(context.Background(), block, t.AssumeRole)
 		if err != nil {
 			return nil, errors.Wrap(err, "error while trying to fetch state from s3 bucket")
 		}
@@ -791,7 +798,8 @@ func (t *TerraformIAMPolicyApplier) ParseTerraformState() (*StateFile, error) {
 
 }
 
-func FetchStateFileFromS3BackendBlockDefinition(block *hclwrite.Block) ([]byte, error) {
+// Accepts a role arn as an input, nil pointer will use the default account
+func FetchStateFileFromS3BackendBlockDefinition(ctx context.Context, block *hclwrite.Block, role *string) ([]byte, error) {
 	bucketAttr := block.Body().GetAttribute("bucket")
 	keyAttr := block.Body().GetAttribute("key")
 	regionAttr := block.Body().GetAttribute("region")
@@ -806,29 +814,26 @@ func FetchStateFileFromS3BackendBlockDefinition(block *hclwrite.Block) ([]byte, 
 	// region := string(regionAttr.Expr().BuildTokens(nil).Bytes())
 	// using this example from aws
 	// https://docs.aws.amazon.com/sdk-for-go/api/service/s3/#example_S3_GetObject_shared00
-	session, err := session.NewSession()
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create aws session while parsing state")
+		return []byte{}, err
 	}
-	svc := s3.New(session)
+	stsSvc := sts.NewFromConfig(cfg)
+
+	// If a role is provided this will attempt to assume the role
+	if role != nil {
+		creds := stscreds.NewAssumeRoleProvider(stsSvc, *role)
+		cfg.Credentials = aws.NewCredentialsCache(creds)
+	}
+
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	}
-	result, err := svc.GetObject(input)
+	svc := s3.NewFromConfig(cfg)
+	result, err := svc.GetObject(ctx, input)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchKey:
-				return []byte{}, errors.Wrap(aerr, s3.ErrCodeNoSuchKey)
-			case s3.ErrCodeInvalidObjectState:
-				return []byte{}, errors.Wrap(aerr, s3.ErrCodeInvalidObjectState)
-			default:
-				return []byte{}, aerr
-			}
-		} else {
-			return []byte{}, errors.Wrap(err, "failed to fetch remote state from s3")
-		}
+		return []byte{}, errors.Wrap(err, "failed to fetch remote state from s3")
 
 	}
 	defer result.Body.Close()
@@ -839,23 +844,6 @@ func FetchStateFileFromS3BackendBlockDefinition(block *hclwrite.Block) ([]byte, 
 	}
 	return buf.Bytes(), nil
 }
-
-// // This method will attempt to run `terraform init` and `terraform show` cli commands with the directory path specified by TerraformIAMPolicyApplier.AWSIAMPolicyApplier.ProjectPath
-// // These function will correctly fetch the state from either local or external state management, assuming the correct credentials exist for remote state
-// func (t *TerraformIAMPolicyApplier) parseTerraformState() (*StateFile, error) {
-
-// 	// JSON output via the -json option requires Terraform v0.12 or later.
-// 	// https://www.terraform.io/docs/cli/commands/show.html
-// 	_, err := exec.Command("terraform", "-chdir=./"+t.AWSIAMPolicyApplier.ProjectPath, "init").Output()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to init terraform ' %s", err)
-// 	}
-// 	out, err := exec.Command("terraform", "-chdir=./"+t.AWSIAMPolicyApplier.ProjectPath, "show", "-json").Output()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to load stateFile using 'terraform show -json' %s", err)
-// 	}
-// 	return MarshalStateFileToGo(out)
-// }
 
 func MarshalStateFileToGo(stateFileBytes []byte) (*StateFile, error) {
 	var stateFile StateFile
