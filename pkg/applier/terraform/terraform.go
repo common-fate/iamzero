@@ -65,6 +65,8 @@ type StateFileResourceInstance struct {
 }
 type StateFileAttribute struct {
 	Arn string `json:"arn"`
+	// A policy attachment has a policy_arn rather than a arn attribute
+	PolicyArn string `json:"policy_arn"`
 	//This is the name
 	Id string `json:"id"`
 	// Will only be populated for some resource types
@@ -116,7 +118,7 @@ type Blocks map[string]*Block
 
 type StateFileResourceRef struct {
 	Key               string
-	StateFileResource *StateFileResource
+	StateFileResource StateFileResource
 }
 type StateFileResources map[string]StateFileResourceRef
 
@@ -165,8 +167,13 @@ func (stateFile *StateFile) ParseStateFileToStateFileResources() *StateFileResou
 			if resource.Module != nil {
 				key = strings.Join(append([]string{*resource.Module, resource.Type}, resource.Name), ".")
 			}
+			if instance.Attributes.Arn != "" {
+				s[instance.Attributes.Arn] = StateFileResourceRef{Key: key, StateFileResource: resource}
+			} else if instance.Attributes.PolicyArn != "" {
+				s[instance.Attributes.PolicyArn] = StateFileResourceRef{Key: key, StateFileResource: resource}
+			}
+			// if it has no ARN it is not included
 
-			s[instance.Attributes.Arn] = StateFileResourceRef{Key: key, StateFileResource: &resource}
 		}
 	}
 	return &s
@@ -490,7 +497,7 @@ func (t *TerraformIAMPolicyApplier) FindAndRemovePolicyAttachmentsForRole(stateF
 	attachments := t.FindPolicyAttachmentsInStateFileByRoleName(stateFileRole.StateFileResource.Instances[0].Attributes.Id)
 	for _, attachment := range attachments {
 		policyAttachmentBlock := t.Blocks.GetBlock(attachment.Key)
-		RemovePolicyAttachmentRole(policyAttachmentBlock.RawBlock, *stateFileRole.StateFileResource)
+		RemovePolicyAttachmentRole(policyAttachmentBlock.RawBlock, stateFileRole.StateFileResource)
 
 	}
 	return nil
@@ -519,7 +526,8 @@ func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChan
 	}
 
 	// @TODO handle failures here
-	awsIamBlock := t.Blocks.GetBlock(t.StateFileResources.Get(t.Finding.Role).Key)
+	stateFileRole := t.StateFileResources.Get(t.Finding.Role)
+	awsIamBlock := t.Blocks.GetBlock(stateFileRole.Key)
 	if awsIamBlock != nil {
 		// Remove any managed policy attachments for this role
 		err := t.FindAndRemovePolicyAttachmentsForRole(t.StateFileResources.Get(t.Finding.Role))
@@ -742,18 +750,17 @@ func sliceContains(slice []string, compareTo string) bool {
 }
 func (t *TerraformIAMPolicyApplier) FindPolicyAttachmentsInStateFileByRoleName(name string) []*StateFileResourceRef {
 	resourceType := "aws_iam_policy_attachment"
-	matches := make(map[string]*StateFileResourceRef)
+	matches := make(map[string]StateFileResourceRef)
 
 	// First checks if its in the root modules
 	for _, r := range *t.StateFileResources {
 		if r.StateFileResource.Type == resourceType && sliceContains(r.StateFileResource.Instances[0].Attributes.Roles, name) {
-			matches[r.Key] = &r
+			matches[r.Key] = r
 		}
 	}
-
 	values := make([]*StateFileResourceRef, 0, len(matches))
 	for _, element := range matches {
-		values = append(values, element)
+		values = append(values, &element)
 	}
 
 	return values
