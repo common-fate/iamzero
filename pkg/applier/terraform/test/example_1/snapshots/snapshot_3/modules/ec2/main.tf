@@ -29,7 +29,7 @@ resource "aws_iam_policy" "iamzero-overprivileged-role-policy" {
 
 resource "aws_iam_policy_attachment" "iamzero-overprivileged-role-policy-attachment" {
   name       = "iamzero-overprivileged-role-policy-attachment"
-  roles      = [aws_iam_role.iamzero-overprivileged-role-pa.name]
+  roles      = []
   policy_arn = aws_iam_policy.iamzero-overprivileged-role-policy.arn
 }
 
@@ -48,7 +48,20 @@ resource "aws_iam_role" "iamzero-overprivileged-role-pa" {
       },
     ]
   })
-  
 
-  
+
+
+  inline_policy {
+    policy = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Action   = ["s3:GetObject"]
+          Effect   = "Allow"
+          Resource = var.iamzero-variable_aws_s3_bucket_iamzero-tf-example-bucket4_arn
+        },
+      ]
+    })
+    name = "iamzero-generated-iam-policy-0"
+  }
 }
