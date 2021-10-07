@@ -16,6 +16,7 @@ import (
 	collectorApp "github.com/common-fate/iamzero/cmd/collector/app"
 	consoleApp "github.com/common-fate/iamzero/cmd/console/app"
 
+	"github.com/common-fate/iamzero/pkg/audit"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -32,6 +33,9 @@ type LocalCommand struct {
 
 	Collector *collectorApp.Collector
 	Console   *consoleApp.Console
+	Auditor   *audit.Auditor
+
+	logLevel string
 }
 
 // LocalCommand creates a new ffcli.Command
@@ -43,12 +47,16 @@ func NewLocalCommand(rootConfig *RootConfig, out io.Writer) *ffcli.Command {
 
 	c.Collector = collectorApp.New()
 	c.Console = consoleApp.New()
+	c.Auditor = audit.New()
 
 	fs := flag.NewFlagSet("iamzero local", flag.ExitOnError)
 
 	// register CLI flags for other components
 	c.Collector.AddFlags(fs)
 	c.Console.AddFlags(fs)
+	c.Auditor.AddFlags(fs)
+
+	fs.StringVar(&c.logLevel, "log-level", "info", "the log level (must match go.uber.org/zap log levels)")
 
 	// fs.IntVar(&cfg.port, "p", 9090, "the local port to run the iamzero server on")
 	// fs.BoolVar(&cfg.demo, "demo", false, "run in demo mode (censors AWS account information)")
@@ -69,7 +77,12 @@ func (c *LocalCommand) log(a ...interface{}) {
 
 // Exec function for this command.
 func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
-	logProd, err := zap.NewProduction()
+	cfg := zap.NewProductionConfig()
+	err := cfg.Level.UnmarshalText([]byte(c.logLevel))
+	if err != nil {
+		return err
+	}
+	logProd, err := cfg.Build()
 	if err != nil {
 		return errors.Wrap(err, "can't initialize zap logger")
 	}
@@ -163,25 +176,34 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-	actionStorage := storage.NewAlertStorage()
-	policyStorage := storage.NewPolicyStorage()
+	db, err := storage.OpenBoltDB()
+	if err != nil {
+		return errors.Wrap(err, "error opening local database, ensure that you are not running 'iamzero local'")
+	}
 
-	if err := c.Collector.Start(&collectorApp.CollectorOptions{
-		Logger:        log,
-		Tracer:        tracer,
-		TokenStore:    tokenStore,
-		ActionStorage: actionStorage,
-		PolicyStorage: policyStorage,
+	actionStorage := storage.NewBoltActionStorage(db)
+	findingStorage := storage.NewBoltFindingStorage(db)
+
+	c.Auditor.Setup(log)
+
+	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
+		Logger:         log,
+		Tracer:         tracer,
+		TokenStore:     tokenStore,
+		ActionStorage:  actionStorage,
+		FindingStorage: findingStorage,
+		Auditor:        c.Auditor,
 	}); err != nil {
 		return err
 	}
 
 	if err := c.Console.Start(&consoleApp.ConsoleOptions{
-		Logger:        log,
-		Tracer:        tracer,
-		TokenStore:    tokenStore,
-		ActionStorage: actionStorage,
-		PolicyStorage: policyStorage,
+		Logger:         log,
+		Tracer:         tracer,
+		TokenStore:     tokenStore,
+		ActionStorage:  actionStorage,
+		FindingStorage: findingStorage,
+		Auditor:        c.Auditor,
 	}); err != nil {
 		return err
 	}

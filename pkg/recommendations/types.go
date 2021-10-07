@@ -1,7 +1,9 @@
 package recommendations
 
 import (
-	"go.uber.org/zap"
+	"github.com/common-fate/iamzero/pkg/audit"
+
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 const (
@@ -14,12 +16,21 @@ const (
 // AWSEvent is an API call logged by an AWS SDK
 // instrumented with iamzero
 type AWSEvent struct {
-	Time     string      `json:"time"`
+	Time     string      `json:"time" hash:"ignore"`
 	Data     AWSData     `json:"data"`
 	Identity AWSIdentity `json:"identity"`
 }
 
+// HashEvent calculates a hash of the event so that we can deduplicate it.
+// We specifically don't hash the time by applying a `hash:"ignore"`
+// tag to the Time field in the AWSEvent struct
+func HashEvent(e AWSEvent) (uint64, error) {
+	return hashstructure.Hash(e, hashstructure.FormatV2, nil)
+}
+
 type AWSData struct {
+	// Type is either "awsAction" or "awsError"
+	Type             string                 `json:"type"`
 	Service          string                 `json:"service"`
 	Region           string                 `json:"region"`
 	Operation        string                 `json:"operation"`
@@ -33,30 +44,9 @@ type AWSIdentity struct {
 	Role    string `json:"role"`
 	Account string `json:"account"`
 }
-
-type AWSIAMPolicy struct {
-	Version   string
-	Id        *string `json:",omitempty"`
-	Statement []AWSIAMStatement
-}
-
-type AWSIAMStatement struct {
-	Sid       string
-	Effect    string
-	Action    []string
-	Principal *AWSIAMPrincipal `json:",omitempty"`
-	Resource  []string
-}
-
-type AWSIAMPrincipal struct {
-	AWS string
-}
-
-// AdviceFactory generates Advice based on a provided event
-type AdviceFactory = func(e AWSEvent) (Advice, error)
-
 type Advisor struct {
-	AlertsMapping map[string][]AdviceFactory
+	AlertsMapping map[string][]AdvisoryTemplate
+	auditor       *audit.Auditor
 }
 
 type Description struct {
@@ -70,10 +60,4 @@ type RecommendationDetails struct {
 	Comment     string
 	Resources   []Resource
 	Description []Description
-}
-
-type Advice interface {
-	Apply(log *zap.SugaredLogger) error
-	GetID() string
-	Details() RecommendationDetails
 }

@@ -14,10 +14,11 @@ import (
 func (c *Console) GetConsoleRoutes() *chi.Mux {
 	router := chi.NewRouter()
 	handlers := api.Handlers{
-		Log:           c.log,
-		TokenStore:    c.tokenStore,
-		ActionStorage: c.actionStorage,
-		PolicyStorage: c.policyStorage,
+		Log:            c.log,
+		TokenStore:     c.tokenStore,
+		ActionStorage:  c.actionStorage,
+		FindingStorage: c.findingStorage,
+		Auditor:        c.auditor,
 	}
 
 	router.Route("/api/v1", func(r chi.Router) {
@@ -44,12 +45,12 @@ func (c *Console) GetConsoleRoutes() *chi.Mux {
 				})
 			})
 
-			r.Route("/policies", func(r chi.Router) {
-				r.Get("/", handlers.ListPolicies)
-				r.Get("/find", handlers.FindPolicy)
-				r.Get("/{policyID}", handlers.GetPolicy)
-				r.Get("/{policyID}/actions", handlers.ListActionsForPolicy)
-				r.Put("/{policyID}/status", handlers.SetPolicyStatus)
+			r.Route("/findings", func(r chi.Router) {
+				r.Get("/", handlers.ListFindings)
+				r.Get("/find", handlers.FindFinding)
+				r.Get("/{findingID}", handlers.GetFinding)
+				r.Get("/{findingID}/actions", handlers.ListActionsForFinding)
+				r.Put("/{findingID}/status", handlers.SetFindingStatus)
 			})
 		})
 	})

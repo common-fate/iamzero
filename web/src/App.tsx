@@ -10,9 +10,9 @@ import { SWRConfig } from "swr";
 import { QueryParamProvider } from "use-query-params";
 import { fetchWithAuth } from "./api";
 import Layout from "./layouts/Layout";
-import AlertRedirectToPolicy from "./pages/AlertRedirectToPolicy";
-import Policies from "./pages/Policies";
-import PolicyDetails from "./pages/PolicyDetails";
+import AlertRedirectToFinding from "./pages/AlertRedirectToPolicy";
+import Findings from "./pages/Findings";
+import FindingDetails from "./pages/FindingDetails";
 import Tokens from "./pages/Tokens";
 import theme from "./theme";
 
@@ -22,19 +22,19 @@ function App() {
       <Layout>
         <Switch>
           <Route path="/" exact>
-            <Redirect to="/policies" />
+            <Redirect to="/findings" />
           </Route>
-          <Route path="/policies" exact>
-            <Policies />
+          <Route path="/findings" exact>
+            <Findings />
           </Route>
-          <Route path="/policies/:policyId">
-            <PolicyDetails />
+          <Route path="/findings/:findingId">
+            <FindingDetails />
           </Route>
           <Route path="/tokens" exact>
             <Tokens />
           </Route>
           <Route path="/alerts/:alertId">
-            <AlertRedirectToPolicy />
+            <AlertRedirectToFinding />
           </Route>
         </Switch>
       </Layout>

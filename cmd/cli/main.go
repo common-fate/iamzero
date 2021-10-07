@@ -15,10 +15,14 @@ func main() {
 		out                     = os.Stdout
 		rootCommand, rootConfig = commands.RootCommand()
 		localCommand            = commands.NewLocalCommand(rootConfig, out)
+		applyCommand            = commands.NewApplyCommand(rootConfig, out)
+		scanCommand             = commands.NewScanCommand(rootConfig, out)
 	)
 
 	rootCommand.Subcommands = []*ffcli.Command{
 		localCommand,
+		applyCommand,
+		scanCommand,
 	}
 
 	if err := rootCommand.Parse(os.Args[1:]); err != nil {

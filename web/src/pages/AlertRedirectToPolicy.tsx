@@ -4,7 +4,7 @@ import { Link as RouterLink, Redirect, useParams } from "react-router-dom";
 import { useAction } from "../api";
 import { CenteredSpinner } from "../components/CenteredSpinner";
 
-const AlertRedirectToPolicy: React.FC = () => {
+const AlertRedirectToFinding: React.FC = () => {
   const { alertId } = useParams<{ alertId: string }>();
   const { data, error } = useAction(alertId);
 
@@ -13,7 +13,7 @@ const AlertRedirectToPolicy: React.FC = () => {
       <Center flexGrow={1}>
         <Text>
           We couldn't find the action you're looking for.{" "}
-          <Link as={RouterLink} to="/policies">
+          <Link as={RouterLink} to="/findings">
             Click here to go back.
           </Link>
         </Text>
@@ -23,7 +23,7 @@ const AlertRedirectToPolicy: React.FC = () => {
 
   if (data === undefined) return <CenteredSpinner />;
 
-  return <Redirect to={`/policies/${data.policyId}?action=${data.id}`} />;
+  return <Redirect to={`/findings/${data.findingId}?action=${data.id}`} />;
 };
 
-export default AlertRedirectToPolicy;
+export default AlertRedirectToFinding;

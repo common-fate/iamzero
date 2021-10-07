@@ -9,6 +9,8 @@ import (
 	collectorApp "github.com/common-fate/iamzero/cmd/collector/app"
 	consoleApp "github.com/common-fate/iamzero/cmd/console/app"
 	"github.com/common-fate/iamzero/internal/tracing"
+	"github.com/common-fate/iamzero/pkg/audit"
+	"github.com/common-fate/iamzero/pkg/config"
 	"github.com/common-fate/iamzero/pkg/service"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
@@ -20,8 +22,11 @@ import (
 type AllInOneCommand struct {
 	TracingFactory    *tracing.TracingFactory
 	TokenStoreFactory *tokens.TokensStoreFactory
+	PostgresStorage   *storage.PostgresStorage
 	Collector         *collectorApp.Collector
 	Console           *consoleApp.Console
+	Auditor           *audit.Auditor
+	Svc               *service.Service
 }
 
 func main() {
@@ -40,6 +45,9 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.TokenStoreFactory = tokens.NewFactory()
 	c.Collector = collectorApp.New()
 	c.Console = consoleApp.New()
+	c.PostgresStorage = storage.NewPostgresStorage()
+	c.Svc = service.NewService()
+	c.Auditor = audit.New()
 
 	fs := flag.NewFlagSet("iamzero-collector", flag.ExitOnError)
 
@@ -48,6 +56,9 @@ func NewAllInOneCommand() *ffcli.Command {
 	c.TokenStoreFactory.AddFlags(fs)
 	c.Collector.AddFlags(fs)
 	c.Console.AddFlags(fs)
+	c.PostgresStorage.AddFlags(fs)
+	c.Svc.AddFlags(fs)
+	c.Auditor.AddFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "iamzero-collector",
@@ -55,52 +66,62 @@ func NewAllInOneCommand() *ffcli.Command {
 		ShortHelp:  "Run an IAM Zero collector.",
 		FlagSet:    fs,
 		// allow setting environment variables to configure server settings
-		Options: []ff.Option{ff.WithEnvVarPrefix("IAMZERO")},
-		Exec:    c.Exec,
+		Options: []ff.Option{ff.WithEnvVarPrefix("IAMZERO"),
+			ff.WithConfigFile(".env"),
+			ff.WithConfigFileParser(config.EnvFileParser("IAMZERO")),
+			ff.WithAllowMissingConfigFile(true)},
+		Exec: c.Exec,
 	}
 }
 
 func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
-	svc := service.NewService(10866)
-	if err := svc.Start(); err != nil {
+	if err := c.Svc.Start(); err != nil {
 		return err
 	}
 
-	log := svc.Logger
+	log := c.Svc.Logger
 	tracer, err := c.TracingFactory.InitializeTracer(ctx)
 	if err != nil {
 		return err
 	}
-	store, err := c.TokenStoreFactory.GetTokensStore(ctx, &tokens.TokensFactorySetupOpts{Log: log, Tracer: tracer})
+
+	// Initialize Postgres
+	db, err := c.PostgresStorage.Connect()
 	if err != nil {
 		return err
 	}
 
+	store, err := c.TokenStoreFactory.GetTokensStore(ctx, &tokens.TokensFactorySetupOpts{Log: log, Tracer: tracer, DB: db})
+	if err != nil {
+		return err
+	}
 	// TODO: shift these to be configurable factories, similar to TokenStoreFactory
-	actionStorage := storage.NewAlertStorage()
-	policyStorage := storage.NewPolicyStorage()
+	actionStorage := storage.NewInMemoryActionStorage()
+	policyStorage := storage.NewInMemoryFindingStorage()
 
-	if err := c.Collector.Start(&collectorApp.CollectorOptions{
-		Logger:        log,
-		Tracer:        tracer,
-		TokenStore:    store,
-		ActionStorage: actionStorage,
-		PolicyStorage: policyStorage,
+	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
+		Logger:         log,
+		Tracer:         tracer,
+		TokenStore:     store,
+		ActionStorage:  actionStorage,
+		FindingStorage: policyStorage,
+		Auditor:        c.Auditor,
 	}); err != nil {
 		return err
 	}
 
 	if err := c.Console.Start(&consoleApp.ConsoleOptions{
-		Logger:        log,
-		Tracer:        tracer,
-		TokenStore:    store,
-		ActionStorage: actionStorage,
-		PolicyStorage: policyStorage,
+		Logger:         log,
+		Tracer:         tracer,
+		TokenStore:     store,
+		ActionStorage:  actionStorage,
+		FindingStorage: policyStorage,
+		Auditor:        c.Auditor,
 	}); err != nil {
 		return err
 	}
 
-	svc.RunAndThen(func() {
+	c.Svc.RunAndThen(func() {
 		if err := c.Collector.Close(); err != nil {
 			log.Fatal("failed to close collector", zap.Error(err))
 		}

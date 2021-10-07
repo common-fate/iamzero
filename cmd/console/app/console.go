@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/common-fate/iamzero/pkg/audit"
 	"github.com/common-fate/iamzero/pkg/storage"
 	"github.com/common-fate/iamzero/pkg/tokens"
 	"go.opentelemetry.io/otel/trace"
@@ -13,11 +14,12 @@ import (
 )
 
 type Console struct {
-	log           *zap.SugaredLogger
-	tracer        trace.Tracer
-	tokenStore    tokens.TokenStorer
-	actionStorage *storage.ActionStorage
-	policyStorage *storage.PolicyStorage
+	log            *zap.SugaredLogger
+	tracer         trace.Tracer
+	tokenStore     tokens.TokenStorer
+	actionStorage  storage.ActionStorage
+	findingStorage storage.FindingStorage
+	auditor        *audit.Auditor
 
 	Host string
 
@@ -30,11 +32,12 @@ func New() *Console {
 }
 
 type ConsoleOptions struct {
-	Logger        *zap.SugaredLogger
-	Tracer        trace.Tracer
-	TokenStore    tokens.TokenStorer
-	ActionStorage *storage.ActionStorage
-	PolicyStorage *storage.PolicyStorage
+	Logger         *zap.SugaredLogger
+	Tracer         trace.Tracer
+	TokenStore     tokens.TokenStorer
+	ActionStorage  storage.ActionStorage
+	FindingStorage storage.FindingStorage
+	Auditor        *audit.Auditor
 }
 
 func (c *Console) AddFlags(fs *flag.FlagSet) {
@@ -46,7 +49,8 @@ func (c *Console) Start(opts *ConsoleOptions) error {
 	c.tracer = opts.Tracer
 	c.tokenStore = opts.TokenStore
 	c.actionStorage = opts.ActionStorage
-	c.policyStorage = opts.PolicyStorage
+	c.findingStorage = opts.FindingStorage
+	c.auditor = opts.Auditor
 
 	c.log.With("console-host", c.Host).Info("starting IAM Zero console")
 

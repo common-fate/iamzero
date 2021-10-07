@@ -15,7 +15,7 @@ import { PolicyStatus } from "../api-types";
 import { CenteredSpinner } from "../components/CenteredSpinner";
 import { PolicyBox } from "../components/PolicyBox";
 
-const Policies: React.FC = () => {
+const Findings: React.FC = () => {
   return (
     <Container maxW="1200px" py={5}>
       <Tabs>
@@ -25,10 +25,10 @@ const Policies: React.FC = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            <PolicyList status="active" />
+            <FindingList status="active" />
           </TabPanel>
           <TabPanel>
-            <PolicyList status="resolved" />
+            <FindingList status="resolved" />
           </TabPanel>
         </TabPanels>
       </Tabs>
@@ -36,11 +36,11 @@ const Policies: React.FC = () => {
   );
 };
 
-interface PolicyListProps {
+interface FindingListProps {
   status: PolicyStatus;
 }
 
-const PolicyList: React.FC<PolicyListProps> = ({ status }) => {
+const FindingList: React.FC<FindingListProps> = ({ status }) => {
   const { data } = usePolicies(status);
   const history = useHistory();
 
@@ -49,7 +49,7 @@ const PolicyList: React.FC<PolicyListProps> = ({ status }) => {
   }
 
   if (data.length === 0)
-    return <Text textAlign="center">No policies yet!</Text>;
+    return <Text textAlign="center">No findings yet!</Text>;
 
   return (
     <Stack>
@@ -57,11 +57,11 @@ const PolicyList: React.FC<PolicyListProps> = ({ status }) => {
         <PolicyBox
           key={policy.id}
           policy={policy}
-          onClick={() => history.push(`/policies/${policy.id}`)}
+          onClick={() => history.push(`/findings/${policy.id}`)}
         />
       ))}
     </Stack>
   );
 };
 
-export default Policies;
+export default Findings;

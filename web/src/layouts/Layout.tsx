@@ -17,8 +17,8 @@ const Layout: React.FC<Props> = (props: Props) => {
         title="iam&#8209;zero"
         navlinks={[
           {
-            text: "Policies",
-            path: "/policies",
+            text: "Findings",
+            path: "/findings",
           },
           {
             text: "Tokens",

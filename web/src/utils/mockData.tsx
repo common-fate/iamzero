@@ -1,4 +1,4 @@
-import { Action, Policy } from "../api-types";
+import { Action, Finding } from "../api-types";
 
 export const MOCK_RESOURCES = [
   {
@@ -12,7 +12,7 @@ export const MOCK_RESOURCES = [
 export const MOCK_ACTIONS: Action[] = [
   {
     id: "d6891731-1d01-4bac-9ed1-35c992d4fd99",
-    policyId: "1",
+    findingId: "1",
     event: {
       time: "2021-07-14T09:21:41.385841Z",
       data: {
@@ -91,7 +91,7 @@ export const MOCK_ACTIONS: Action[] = [
   },
 ];
 
-export const MOCK_POLICIES: Policy[] = [
+export const MOCK_POLICIES: Finding[] = [
   {
     id: "1",
     status: "active",
@@ -102,10 +102,6 @@ export const MOCK_POLICIES: Policy[] = [
     },
     eventCount: 31,
     lastUpdated: new Date(),
-    token: {
-      id: "1",
-      name: "Chris's laptop",
-    },
     document: {
       Version: "2012-10-17",
       Statement: [
@@ -130,10 +126,6 @@ export const MOCK_POLICIES: Policy[] = [
     },
     eventCount: 5,
     lastUpdated: new Date(),
-    token: {
-      id: "1",
-      name: "Chris's laptop",
-    },
     document: {
       Version: "2012-10-17",
       Statement: [
