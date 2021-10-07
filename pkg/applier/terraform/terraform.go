@@ -65,6 +65,8 @@ type StateFileResourceInstance struct {
 }
 type StateFileAttribute struct {
 	Arn string `json:"arn"`
+	// A policy attachment has a policy_arn rather than a arn attribute
+	PolicyArn string `json:"policy_arn"`
 	//This is the name
 	Id string `json:"id"`
 	// Will only be populated for some resource types
@@ -116,7 +118,7 @@ type Blocks map[string]*Block
 
 type StateFileResourceRef struct {
 	Key               string
-	StateFileResource *StateFileResource
+	StateFileResource StateFileResource
 }
 type StateFileResources map[string]StateFileResourceRef
 
@@ -165,8 +167,13 @@ func (stateFile *StateFile) ParseStateFileToStateFileResources() *StateFileResou
 			if resource.Module != nil {
 				key = strings.Join(append([]string{*resource.Module, resource.Type}, resource.Name), ".")
 			}
+			if instance.Attributes.Arn != "" {
+				s[instance.Attributes.Arn] = StateFileResourceRef{Key: key, StateFileResource: resource}
+			} else if instance.Attributes.PolicyArn != "" {
+				s[instance.Attributes.PolicyArn] = StateFileResourceRef{Key: key, StateFileResource: resource}
+			}
+			// if it has no ARN it is not included
 
-			s[instance.Attributes.Arn] = StateFileResourceRef{Key: key, StateFileResource: &resource}
 		}
 	}
 	return &s
@@ -345,14 +352,15 @@ func (t *TerraformIAMPolicyApplier) IsBlockInRoot(b *Block) bool {
 //
 // iamzero-variable_<resourceName>_<propertyType>
 func GenerateVariableName(resourceName string, propertyType string) string {
-	return strings.Join([]string{"iamzero-variable", resourceName, propertyType}, "_")
+	return strings.ReplaceAll(strings.Join([]string{"iamzero-variable", resourceName, propertyType}, "_"), ".", "_")
+
 }
 
 // Returns an iamzero formatted output name
 //
 // iamzero-output_<resourceName>_<propertyType>
 func GenerateOutputName(resourceName string, propertyType string) string {
-	return strings.Join([]string{"iamzero-output", resourceName, propertyType}, "_")
+	return strings.ReplaceAll(strings.Join([]string{"iamzero-output", resourceName, propertyType}, "_"), ".", "_")
 }
 
 // Returns an hcl.Traversal which can be written to an hcl file without including quotes
@@ -408,7 +416,7 @@ func AppendVariableBlockIfNotExist(body *hclwrite.Body, name string, description
 func AppendVariableBlock(body *hclwrite.Body, name string, description string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("variable", []string{name})
-	newBlock.Body().SetAttributeValue("type", cty.StringVal("string"))
+	newBlock.Body().SetAttributeRaw("type", StringToHclwriteTokensWithoutQuotes("string"))
 	newBlock.Body().SetAttributeValue("description", cty.StringVal(description))
 	body.AppendBlock(newBlock)
 	body.AppendNewline()
@@ -439,12 +447,15 @@ func AppendOutputBlockIfNotExist(body *hclwrite.Body, name string, description s
 func AppendOutputBlock(body *hclwrite.Body, name string, description string, value string) {
 	body.AppendNewline()
 	newBlock := hclwrite.NewBlock("output", []string{name})
-	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(value)}
-	toks := hclwrite.Tokens{&t}
-	newBlock.Body().SetAttributeRaw("value", toks)
+	newBlock.Body().SetAttributeRaw("value", StringToHclwriteTokensWithoutQuotes(value))
 	newBlock.Body().SetAttributeValue("description", cty.StringVal(description))
 	body.AppendBlock(newBlock)
 	body.AppendNewline()
+}
+
+func StringToHclwriteTokensWithoutQuotes(str string) hclwrite.Tokens {
+	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(str)}
+	return hclwrite.Tokens{&t}
 }
 
 // Open file will open or create an empty hclfile
@@ -486,7 +497,7 @@ func (t *TerraformIAMPolicyApplier) FindAndRemovePolicyAttachmentsForRole(stateF
 	attachments := t.FindPolicyAttachmentsInStateFileByRoleName(stateFileRole.StateFileResource.Instances[0].Attributes.Id)
 	for _, attachment := range attachments {
 		policyAttachmentBlock := t.Blocks.GetBlock(attachment.Key)
-		RemovePolicyAttachmentRole(policyAttachmentBlock.RawBlock, *stateFileRole.StateFileResource)
+		RemovePolicyAttachmentRole(policyAttachmentBlock.RawBlock, stateFileRole.StateFileResource)
 
 	}
 	return nil
@@ -515,7 +526,8 @@ func (t *TerraformIAMPolicyApplier) PlanTerraformFinding() (*applier.PendingChan
 	}
 
 	// @TODO handle failures here
-	awsIamBlock := t.Blocks.GetBlock(t.StateFileResources.Get(t.Finding.Role).Key)
+	stateFileRole := t.StateFileResources.Get(t.Finding.Role)
+	awsIamBlock := t.Blocks.GetBlock(stateFileRole.Key)
 	if awsIamBlock != nil {
 		// Remove any managed policy attachments for this role
 		err := t.FindAndRemovePolicyAttachmentsForRole(t.StateFileResources.Get(t.Finding.Role))
@@ -700,9 +712,7 @@ func RemovePolicyAttachmentRole(block *hclwrite.Block, stateFileRole StateFileRe
 		}
 	}
 
-	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(fmt.Sprintf(`[%s]`, strings.Join(filteredRoles, ",")))}
-	toks := hclwrite.Tokens{&t}
-	block.Body().SetAttributeRaw("roles", toks)
+	block.Body().SetAttributeRaw("roles", StringToHclwriteTokensWithoutQuotes(fmt.Sprintf(`[%s]`, strings.Join(filteredRoles, ","))))
 }
 
 func FindBlockWithMatchingValueAttribute(blocks []*hclwrite.Block, valueString string) *hclwrite.Block {
@@ -740,18 +750,17 @@ func sliceContains(slice []string, compareTo string) bool {
 }
 func (t *TerraformIAMPolicyApplier) FindPolicyAttachmentsInStateFileByRoleName(name string) []*StateFileResourceRef {
 	resourceType := "aws_iam_policy_attachment"
-	matches := make(map[string]*StateFileResourceRef)
+	matches := make(map[string]StateFileResourceRef)
 
 	// First checks if its in the root modules
 	for _, r := range *t.StateFileResources {
 		if r.StateFileResource.Type == resourceType && sliceContains(r.StateFileResource.Instances[0].Attributes.Roles, name) {
-			matches[r.Key] = &r
+			matches[r.Key] = r
 		}
 	}
-
 	values := make([]*StateFileResourceRef, 0, len(matches))
 	for _, element := range matches {
-		values = append(values, element)
+		values = append(values, &element)
 	}
 
 	return values
@@ -779,6 +788,9 @@ func (t *TerraformIAMPolicyApplier) ParseTerraformState() (*StateFile, error) {
 	}
 	terraform := mainFile.Body().FirstMatchingBlock("terraform", []string{})
 	if terraform == nil {
+		if localState {
+			return t.FileHandler.OpenStateFile(path.Join(t.AWSIAMPolicyApplier.ProjectPath, "terraform.tfstate"))
+		}
 		return nil, errors.New("could not find terraform block while trying to parse terraform state")
 	}
 	block := terraform.Body().FirstMatchingBlock("backend", []string{"s3"})
@@ -865,7 +877,7 @@ func MarshalStateFileToGo(stateFileBytes []byte) (*StateFile, error) {
 func setInlinePolicyIamPolicy(block *hclwrite.Block, action string, resource string, name string) {
 	// @TODO if hclwrite add a simple way to write function values like this we may switch over,
 	// However for now it seems this is the simplest way to add a function block to HCL using the hclwite package
-	t := hclwrite.Token{Type: hclsyntax.TokenType('Q'), Bytes: []byte(fmt.Sprintf(`jsonencode({
+	str := fmt.Sprintf(`jsonencode({
         Version = "2012-10-17"
         Statement = [
           {
@@ -874,9 +886,8 @@ func setInlinePolicyIamPolicy(block *hclwrite.Block, action string, resource str
             Resource = %s
           },
         ]
-      })`, action, resource))}
-	toks := hclwrite.Tokens{&t}
-	block.Body().SetAttributeRaw("policy", toks)
+      })`, action, resource)
+	block.Body().SetAttributeRaw("policy", StringToHclwriteTokensWithoutQuotes(str))
 	block.Body().SetAttributeValue("name", cty.StringVal(name))
 }
 
