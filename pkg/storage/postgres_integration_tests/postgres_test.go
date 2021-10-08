@@ -17,7 +17,7 @@ func Test_BasicInsert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id := uuid.New()
+	id := uuid.NewString()
 
 	_, err = db.Query("INSERT INTO tokens (id, name) VALUES ($1, $2)", id, "test")
 	if err != nil {
@@ -30,6 +30,6 @@ func Test_BasicInsert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, id.String(), tok.ID)
+	assert.Equal(t, id, tok.ID)
 	assert.Equal(t, "test", tok.Name)
 }
