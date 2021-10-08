@@ -13,8 +13,10 @@ type AWSIAMPolicy struct {
 	Statement IAMStatements
 }
 
+// Value implements the driver.Valuer interface required to serialize the object to Postgres
 func (p AWSIAMPolicy) Value() (driver.Value, error) { return json.Marshal(&p) }
 
+// Scan implements the sql.Scanner interface required to deserialize the object from Postgres
 func (p *AWSIAMPolicy) Scan(val interface{}) error {
 	switch v := val.(type) {
 	case []byte:
