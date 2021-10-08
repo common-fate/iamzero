@@ -86,6 +86,8 @@ func Test_ListForStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	db.Query("DELETE FROM findings")
+
 	s := storage.NewPostgresFindingStorage(db)
 
 	finding := mockFinding()
@@ -108,6 +110,8 @@ func Test_FindByRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	db.Query("DELETE FROM findings")
 
 	s := storage.NewPostgresFindingStorage(db)
 
