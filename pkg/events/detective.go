@@ -84,11 +84,11 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 
 		// create a new policy for the token and role if it doesn't exist
 		finding = &recommendations.Finding{
-			ID:          uuid.NewString(),
-			Identity:    identity,
-			LastUpdated: time.Now(),
-			EventCount:  0,
-			Status:      "active",
+			ID:         uuid.NewString(),
+			Identity:   identity,
+			UpdatedAt:  time.Now(),
+			EventCount: 0,
+			Status:     "active",
 			Document: policies.AWSIAMPolicy{
 				Version:   "2012-10-17",
 				Statement: []policies.AWSIAMStatement{},

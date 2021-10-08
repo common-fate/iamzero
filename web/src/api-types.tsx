@@ -97,7 +97,7 @@ export interface Token {
 export interface Finding {
   id: string;
   identity: AWSIdentity;
-  lastUpdated: Date;
+  updatedAt: Date;
   eventCount: number;
   document: AWSIAMPolicy;
   status: PolicyStatus;

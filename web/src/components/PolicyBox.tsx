@@ -30,7 +30,7 @@ export const PolicyBox: React.FC<Props> = ({ policy, onClick }) => {
         </Heading>
       </Stack>
       <Flex direction="column" justify="space-between" align="flex-end">
-        <RelativeDateText textAlign="right" date={policy.lastUpdated} />
+        <RelativeDateText textAlign="right" date={policy.updatedAt} />
         <Box>
           <Badge>{getEventCountString(policy.eventCount)}</Badge>
         </Box>

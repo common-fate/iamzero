@@ -101,7 +101,7 @@ export const MOCK_POLICIES: Finding[] = [
       role: "arn:aws:iam::123456789012:role/iamzero-test-role",
     },
     eventCount: 31,
-    lastUpdated: new Date(),
+    updatedAt: new Date(),
     document: {
       Version: "2012-10-17",
       Statement: [
@@ -125,7 +125,7 @@ export const MOCK_POLICIES: Finding[] = [
       role: "arn:aws:iam::123456789012:role/iamzero-test-role",
     },
     eventCount: 5,
-    lastUpdated: new Date(),
+    updatedAt: new Date(),
     document: {
       Version: "2012-10-17",
       Statement: [

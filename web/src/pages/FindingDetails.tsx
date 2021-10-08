@@ -149,10 +149,7 @@ const FindingDetails: React.FC = () => {
                       {getEventCountString(policy.eventCount)}
                     </Badge>
                   </Box>
-                  <RelativeDateText
-                    textAlign="right"
-                    date={policy.lastUpdated}
-                  />
+                  <RelativeDateText textAlign="right" date={policy.updatedAt} />
                 </HStack>
               </Flex>
               <HStack>
