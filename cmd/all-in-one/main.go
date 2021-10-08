@@ -86,7 +86,7 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 	}
 
 	// Initialize Postgres
-	db, err := c.PostgresStorage.Connect()
+	db, err := c.PostgresStorage.Connect(log)
 	if err != nil {
 		return err
 	}
