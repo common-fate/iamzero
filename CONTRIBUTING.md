@@ -51,6 +51,16 @@ go run cmd/all-in-one/main.go -token-storage-backend=inmemory
 
 The backend web application API is served on http://localhost:14321 by default. The collector HTTP endpoint, used to receive IAM Zero events from client libraries, is served on http://localhost:13991 by default.
 
+## Testing Postgres
+
+To run tests with the Postgres database, run
+
+```
+make test-postgres
+```
+
+This will require Postgres running locally via the `docker-compose.yml` file.
+
 # CloudFormation templates
 
 CloudFormation templates are currently a work-in-progress. These can be packaged and deployed as follows (note: requires access to the iamzero sandbox AWS account, otherwise you can create your own S3 bucket):

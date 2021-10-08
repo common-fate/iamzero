@@ -1,0 +1,6 @@
+{
+  "gopls": {
+    "buildFlags": ["-tags=postgres"]
+  },
+  "go.testTags": "postgres"
+}
