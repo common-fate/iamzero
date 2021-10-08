@@ -23,7 +23,7 @@ type Statement struct {
 	Resource []string
 }
 
-type JSONAdvice struct {
+type LeastPrivilegePolicy struct {
 	ID        string
 	AWSPolicy policies.AWSIAMPolicy
 	Comment   string
@@ -33,7 +33,7 @@ type JSONAdvice struct {
 
 // CreateAdviceFromEvent runs the received event through the AdvisoryTemplate to generate a least-privilege
 // advice
-func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONAdvice, error) {
+func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*LeastPrivilegePolicy, error) {
 	var iamStatements []policies.AWSIAMStatement
 	resources := []CloudResourceInstance{}
 
@@ -107,7 +107,7 @@ func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONA
 		return nil, err
 	}
 
-	advice := JSONAdvice{
+	advice := LeastPrivilegePolicy{
 		AWSPolicy: policy,
 		Comment:   r.Comment,
 		ID:        id,
@@ -117,11 +117,11 @@ func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONA
 	return &advice, nil
 }
 
-func (a *JSONAdvice) GetID() string {
+func (a *LeastPrivilegePolicy) GetID() string {
 	return a.ID
 }
 
-func (a *JSONAdvice) getDescription() []Description {
+func (a *LeastPrivilegePolicy) getDescription() []Description {
 	return []Description{
 		{
 			AppliedTo: a.RoleName,
@@ -131,7 +131,7 @@ func (a *JSONAdvice) getDescription() []Description {
 	}
 }
 
-func (a *JSONAdvice) Details() RecommendationDetails {
+func (a *LeastPrivilegePolicy) Details() RecommendationDetails {
 	desc := a.getDescription()
 	details := RecommendationDetails{
 		ID:          a.ID,

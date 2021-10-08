@@ -143,11 +143,11 @@ func NewAdvisor(auditor *audit.Auditor) *Advisor {
 }
 
 // Advise
-func (a *Advisor) Advise(e AWSEvent) ([]*JSONAdvice, error) {
+func (a *Advisor) Advise(e AWSEvent) ([]*LeastPrivilegePolicy, error) {
 	key := e.Data.Service + ":" + e.Data.Operation
 
 	advisoryTemplates := a.AlertsMapping[key]
-	var advices []*JSONAdvice
+	var advices []*LeastPrivilegePolicy
 
 	for _, advisoryTemplate := range advisoryTemplates {
 		advice, err := a.CreateAdviceFromEvent(&e, advisoryTemplate)

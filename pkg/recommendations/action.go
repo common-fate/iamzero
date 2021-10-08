@@ -24,12 +24,12 @@ type AWSAction struct {
 	Status    string    `json:"status"`
 	Time      time.Time `json:"time"`
 	// Resources          []CloudResourceInstance `json:"resources"`
-	Recommendations    []*JSONAdvice `json:"recommendations"`
-	HasRecommendations bool          `json:"hasRecommendations"`
+	Recommendations    []*LeastPrivilegePolicy `json:"recommendations"`
+	HasRecommendations bool                    `json:"hasRecommendations"`
 	// Enabled indicates whether this action is used in a least-privilege policy
 	Enabled bool `json:"enabled"`
-	// SelectedAdvisoryID is the ID of the advisory selected by the user to resolve the policy
-	SelectedAdvisoryID string `json:"selectedAdvisoryId"`
+	// SelectedLeastPrivilegePolicyID is the ID of the advisory selected by the user to resolve the policy
+	SelectedLeastPrivilegePolicyID string `json:"selectedAdvisoryId"`
 }
 type AWSActions []*AWSAction
 
@@ -38,7 +38,7 @@ type AWSActions []*AWSAction
 func (a *AWSAction) SelectAdvisory(id string) error {
 	for _, r := range a.Recommendations {
 		if r.GetID() == id {
-			a.SelectedAdvisoryID = id
+			a.SelectedLeastPrivilegePolicyID = id
 			return nil
 		}
 	}
@@ -46,9 +46,9 @@ func (a *AWSAction) SelectAdvisory(id string) error {
 }
 
 // GetSelectedAdvisory returns the Advice object matching the action's SelectedAdvisoryID
-func (a *AWSAction) GetSelectedAdvisory() *JSONAdvice {
+func (a *AWSAction) GetSelectedAdvisory() *LeastPrivilegePolicy {
 	for _, r := range a.Recommendations {
-		if r.GetID() == a.SelectedAdvisoryID {
+		if r.GetID() == a.SelectedLeastPrivilegePolicyID {
 			return r
 		}
 	}

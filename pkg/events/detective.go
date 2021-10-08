@@ -111,16 +111,16 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 		Time:               time.Now(),
 		HasRecommendations: false,
 		// Resources:          []recommendations.CloudResourceInstance{},
-		Recommendations:    []*recommendations.JSONAdvice{},
-		Enabled:            true,
-		SelectedAdvisoryID: "",
+		Recommendations:                []*recommendations.LeastPrivilegePolicy{},
+		Enabled:                        true,
+		SelectedLeastPrivilegePolicyID: "",
 	}
 
 	if len(advice) > 0 {
 		action.HasRecommendations = true
 		action.Recommendations = advice
 		// action.Resources = advice[0].Details().Resources // TODO: we should aggregate resources across different advisories
-		action.SelectedAdvisoryID = advice[0].GetID()
+		action.SelectedLeastPrivilegePolicyID = advice[0].GetID()
 	}
 
 	c.log.With("action", action).Info("adding action")
