@@ -28,14 +28,14 @@ type JSONAdvice struct {
 	AWSPolicy policies.AWSIAMPolicy
 	Comment   string
 	RoleName  string
-	Resources []Resource
+	Resources []CloudResourceInstance
 }
 
 // CreateAdviceFromEvent runs the received event through the AdvisoryTemplate to generate a least-privilege
 // advice
 func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONAdvice, error) {
 	var iamStatements []policies.AWSIAMStatement
-	resources := []Resource{}
+	resources := []CloudResourceInstance{}
 
 	// extract variables from the API call to insert in our recommended policies
 	vars := e.Data.Parameters
@@ -76,7 +76,7 @@ func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONA
 
 			renderedResources = append(renderedResources, resBytes.String())
 
-			resources = append(resources, Resource{
+			resources = append(resources, CloudResourceInstance{
 				ID:          uuid.NewString(),
 				Name:        friendlyResourceName,
 				CDKResource: cdkResource,
