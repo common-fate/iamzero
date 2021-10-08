@@ -1,14 +1,29 @@
 package policies
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 type AWSIAMPolicy struct {
 	Version   string
 	Id        *string `json:",omitempty"`
 	Statement IAMStatements
+}
+
+func (p AWSIAMPolicy) Value() (driver.Value, error) { return json.Marshal(&p) }
+
+func (p *AWSIAMPolicy) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case []byte:
+		return json.Unmarshal(v, &p)
+	case string:
+		return json.Unmarshal([]byte(v), &p)
+	default:
+		return fmt.Errorf("Unsupported type: %T", v)
+	}
 }
 
 type AWSIAMStatement struct {
