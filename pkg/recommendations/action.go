@@ -3,8 +3,6 @@ package recommendations
 import (
 	"errors"
 	"time"
-
-	"github.com/common-fate/iamzero/pkg/policies"
 )
 
 // CloudResourceInstance is a cloud resource such as an S3 bucket which permissions can be granted for
@@ -14,9 +12,9 @@ import (
 type CloudResourceInstance struct {
 	ID string `json:"id"`
 	// a friendly name for the resource
-	Name        string                `json:"name"`
-	CDKResource *policies.CDKResource `json:"cdkResource"`
-	ARN         string                `json:"arn"`
+	Name string `json:"name"`
+	// CDKResource *policies.CDKResource `json:"cdkResource"`
+	ARN string `json:"arn"`
 }
 
 type AWSAction struct {

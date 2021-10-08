@@ -66,7 +66,7 @@ func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONA
 			// determine whether we have an infrastructure-as-code definition for the resource
 			// TODO: confirm whether this lookup needs to be modified for more complex resources
 			// e.g. DynamoDB tables or KMS keys.
-			cdkResource := a.auditor.GetCDKResourceByPhysicalID(friendlyResourceName)
+			// cdkResource := a.auditor.GetCDKResourceByPhysicalID(friendlyResourceName)
 
 			var resBytes bytes.Buffer
 			err = tmpl.Execute(&resBytes, vars)
@@ -77,10 +77,10 @@ func (a *Advisor) CreateAdviceFromEvent(e *AWSEvent, r AdvisoryTemplate) (*JSONA
 			renderedResources = append(renderedResources, resBytes.String())
 
 			resources = append(resources, CloudResourceInstance{
-				ID:          uuid.NewString(),
-				Name:        friendlyResourceName,
-				CDKResource: cdkResource,
-				ARN:         resBytes.String(),
+				ID:   uuid.NewString(),
+				Name: friendlyResourceName,
+				// CDKResource: cdkResource,
+				ARN: resBytes.String(),
 			})
 		}
 
