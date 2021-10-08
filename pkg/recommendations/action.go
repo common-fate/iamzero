@@ -7,10 +7,11 @@ import (
 	"github.com/common-fate/iamzero/pkg/policies"
 )
 
-// Resource is a cloud resource such as an S3 bucket which permissions can be granted for
+// CloudResourceInstance is a cloud resource such as an S3 bucket which permissions can be granted for
 // Currently we just use this in the UI to display a human-friendly list of resources
 // for each recorded action.
-type Resource struct {
+// A CloudResourceInstance is a **deployed** cloud resource which exists in a given particular cloud account.
+type CloudResourceInstance struct {
 	ID string `json:"id"`
 	// a friendly name for the resource
 	Name        string                `json:"name"`
@@ -19,12 +20,12 @@ type Resource struct {
 }
 
 type AWSAction struct {
-	ID                 string        `json:"id"`
-	FindingID          string        `json:"findingId"`
-	Event              AWSEvent      `json:"event"`
-	Status             string        `json:"status"`
-	Time               time.Time     `json:"time"`
-	Resources          []Resource    `json:"resources"`
+	ID        string    `json:"id"`
+	FindingID string    `json:"findingId"`
+	Event     AWSEvent  `json:"event"`
+	Status    string    `json:"status"`
+	Time      time.Time `json:"time"`
+	// Resources          []CloudResourceInstance `json:"resources"`
 	Recommendations    []*JSONAdvice `json:"recommendations"`
 	HasRecommendations bool          `json:"hasRecommendations"`
 	// Enabled indicates whether this action is used in a least-privilege policy

@@ -10,12 +10,12 @@ import (
 )
 
 type ActionResponse struct {
-	ID        string                     `json:"id"`
-	FindingID string                     `json:"findingId"`
-	Event     recommendations.AWSEvent   `json:"event"`
-	Status    string                     `json:"status"`
-	Time      time.Time                  `json:"time"`
-	Resources []recommendations.Resource `json:"resources"`
+	ID        string                                  `json:"id"`
+	FindingID string                                  `json:"findingId"`
+	Event     recommendations.AWSEvent                `json:"event"`
+	Status    string                                  `json:"status"`
+	Time      time.Time                               `json:"time"`
+	Resources []recommendations.CloudResourceInstance `json:"resources"`
 
 	Recommendations    []recommendations.RecommendationDetails `json:"recommendations"`
 	HasRecommendations bool                                    `json:"hasRecommendations"`
@@ -30,11 +30,11 @@ func buildActionResponse(action recommendations.AWSAction) ActionResponse {
 		detailsArr = append(detailsArr, details)
 	}
 	return ActionResponse{
-		ID:                 action.ID,
-		FindingID:          action.FindingID,
-		Event:              action.Event,
-		Status:             action.Status,
-		Resources:          action.Resources,
+		ID:        action.ID,
+		FindingID: action.FindingID,
+		Event:     action.Event,
+		Status:    action.Status,
+		// Resources:          action.Resources,
 		Time:               action.Time,
 		Recommendations:    detailsArr,
 		HasRecommendations: action.HasRecommendations,

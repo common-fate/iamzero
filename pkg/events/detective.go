@@ -110,7 +110,7 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 		Status:             recommendations.AlertActive,
 		Time:               time.Now(),
 		HasRecommendations: false,
-		Resources:          []recommendations.Resource{},
+		// Resources:          []recommendations.CloudResourceInstance{},
 		Recommendations:    []*recommendations.JSONAdvice{},
 		Enabled:            true,
 		SelectedAdvisoryID: "",
@@ -119,7 +119,7 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 	if len(advice) > 0 {
 		action.HasRecommendations = true
 		action.Recommendations = advice
-		action.Resources = advice[0].Details().Resources // TODO: we should aggregate resources across different advisories
+		// action.Resources = advice[0].Details().Resources // TODO: we should aggregate resources across different advisories
 		action.SelectedAdvisoryID = advice[0].GetID()
 	}
 

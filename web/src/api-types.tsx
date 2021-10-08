@@ -64,7 +64,7 @@ export interface ActionWithRecommendations {
   time: Date;
   status: AlertStatus;
   recommendations: Recommendation[];
-  resources: Resource[];
+  // resources: Resource[];
   hasRecommendations: true;
   enabled: boolean;
   selectedAdvisoryId: string;
@@ -78,7 +78,7 @@ export interface UnhandledAction {
   time: Date;
   status: AlertStatus;
   recommendations: null;
-  resources: Resource[];
+  // resources: Resource[];
   hasRecommendations: false;
   enabled: boolean;
   selectedAdvisoryId: string;

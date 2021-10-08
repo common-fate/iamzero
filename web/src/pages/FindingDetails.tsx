@@ -417,7 +417,7 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
             </Flex>
             <Flex w="350px" justify="flex-end">
               <Stack>
-                {action.resources.map((resource) => (
+                {/* {action.resources.map((resource) => (
                   <Box
                     key={resource.id}
                     as="span"
@@ -429,7 +429,7 @@ const ActionDisplay: React.FC<ActionDisplayProps> = ({
                   >
                     {resource.name}
                   </Box>
-                ))}
+                ))} */}
               </Stack>
             </Flex>
           </Flex>

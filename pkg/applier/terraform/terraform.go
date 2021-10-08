@@ -321,15 +321,10 @@ func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommenda
 						terraformStatement := TerraformStatement{
 							Actions: s.Action,
 						}
-						for _, resource := range alert.Resources {
-
-							var terraformResource TerraformResource
-							if resource.CDKResource == nil {
-
-								terraformResource = TerraformResource{
-									Reference: "IAM",
-									ARN:       &resource.ARN,
-								}
+						for _, resource := range s.Resource {
+							terraformResource := TerraformResource{
+								Reference: "IAM",
+								ARN:       &resource,
 							}
 							terraformStatement.Resources = append(terraformStatement.Resources, terraformResource)
 						}
