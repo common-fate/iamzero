@@ -129,8 +129,6 @@ func (t *CDKIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 }
 
 func (t *CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Finding, actions []recommendations.AWSAction) {
-	return
-
 	// // only derive a CDK finding if we know that the role that we are
 	// // giving recommendations for has been defined using CDK
 	// if policy.Identity.CDKResource == nil {
