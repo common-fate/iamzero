@@ -17,13 +17,14 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.5.0
 	github.com/fatih/color v1.12.0
 	github.com/go-chi/chi v1.5.4
+	github.com/golang-migrate/migrate/v4 v4.15.0
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/hcl/v2 v2.10.1
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.2.1-0.20191011153232-f91d3411e481
+	github.com/lib/pq v1.10.0
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/peterbourgon/ff/v3 v3.0.0
