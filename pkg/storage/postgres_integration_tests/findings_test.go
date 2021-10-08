@@ -101,7 +101,12 @@ func Test_ListForStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	assert.Len(t, actual, 1)
+
+	// ignore the timestamp for now
+	actual[0].UpdatedAt = finding.UpdatedAt
+
 	assert.Equal(t, finding, actual[0])
 }
 
