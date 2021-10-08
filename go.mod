@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	github.com/asdine/storm/v3 v3.2.1
-	github.com/aws/aws-sdk-go v1.40.53
 	github.com/aws/aws-sdk-go-v2 v1.9.1
 	github.com/aws/aws-sdk-go-v2/config v1.4.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.3.0
@@ -35,10 +34,10 @@ require (
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.opentelemetry.io/otel v1.0.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.0.0
-	go.opentelemetry.io/otel/oteltest v1.0.0-RC1 // indirect
 	go.opentelemetry.io/otel/sdk v1.0.0
 	go.opentelemetry.io/otel/trace v1.0.0
 	go.uber.org/zap v1.17.0
+	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	google.golang.org/appengine v1.6.7 // indirect
