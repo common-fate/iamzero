@@ -89,9 +89,9 @@ func Test_ListForPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db.Query("DELETE FROM findings")
 	db.Query("DELETE FROM actions")
 	db.Query("DELETE FROM events")
+	db.Query("DELETE FROM findings")
 
 	s := storage.NewPostgresFindingStorage(db)
 
@@ -126,9 +126,9 @@ func Test_ListEnabledActionsForFinding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db.Query("DELETE FROM findings")
 	db.Query("DELETE FROM actions")
 	db.Query("DELETE FROM events")
+	db.Query("DELETE FROM findings")
 
 	s := storage.NewPostgresFindingStorage(db)
 
