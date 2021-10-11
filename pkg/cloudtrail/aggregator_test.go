@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/common-fate/iamzero/pkg/recommendations"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAggregatorRead_Works(t *testing.T) {
 	e := getTestLogEntry()
+
 	agg := NewAggregator()
 
 	err := agg.Read(e)
@@ -20,7 +20,7 @@ func TestAggregatorRead_Works(t *testing.T) {
 	expected := []recommendations.AWSEvent{
 
 		{
-			ID:   uuid.NewString(),
+			ID:   res[0].ID,
 			Time: "2021-09-02T04:29:14Z",
 			Identity: recommendations.AWSIdentity{
 				User:    "AROAUAMTP2WEJUZJXFJX7:test-role",
@@ -37,5 +37,6 @@ func TestAggregatorRead_Works(t *testing.T) {
 			},
 		},
 	}
+
 	assert.Equal(t, expected, res)
 }

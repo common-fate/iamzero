@@ -5,7 +5,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/common-fate/iamzero/pkg/recommendations"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +31,7 @@ func TestTryConvertToEvent_Works(t *testing.T) {
 	assert.NoError(t, err)
 
 	expected := &recommendations.AWSEvent{
-		ID:   uuid.NewString(),
+		ID:   result.ID,
 		Time: "2021-09-02T04:29:14Z",
 		Identity: recommendations.AWSIdentity{
 			User:    "AROAUAMTP2WEJUZJXFJX7:test-role",
