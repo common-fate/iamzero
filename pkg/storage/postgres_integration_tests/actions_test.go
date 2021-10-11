@@ -24,7 +24,7 @@ func mockAWSAction(findingID string) recommendations.AWSAction {
 				Account: "123456789012",
 			}, Data: recommendations.AWSData{}, Time: "2021-09-02T04:29:14Z"},
 		Status:             "test",
-		FindingId:          findingID,
+		FindingID:          findingID,
 		Time:               time.Now(),
 		HasRecommendations: true,
 		Enabled:            true, SelectedLeastPrivilegePolicyID: "",

@@ -55,7 +55,7 @@ func (a *InMemoryActionStorage) ListForPolicy(findingID string) ([]recommendatio
 	actions := []recommendations.AWSAction{}
 
 	for _, action := range a.actions {
-		if action.FindingId == findingID {
+		if action.FindingID == findingID {
 			actions = append(actions, action)
 		}
 	}

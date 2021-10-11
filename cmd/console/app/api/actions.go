@@ -31,7 +31,7 @@ func buildActionResponse(action recommendations.AWSAction) ActionResponse {
 	}
 	return ActionResponse{
 		ID:        action.ID,
-		FindingId: action.FindingId,
+		FindingId: action.FindingID,
 		Event:     action.Event,
 		Status:    action.Status,
 		// Resources:          action.Resources,
@@ -105,7 +105,7 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.FindingStorage.Get(action.FindingId)
+	policy, err := h.FindingStorage.Get(action.FindingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return

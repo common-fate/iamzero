@@ -62,7 +62,7 @@ func (s *PostgresActionStorage) Add(a recommendations.AWSAction) error {
 	}
 
 	_, err = s.db.Query("INSERT INTO actions (id, finding_id, event_id, status, time, has_recommendations, enabled) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-		a.ID, a.FindingId, a.Event.ID, a.Status, a.Time, a.HasRecommendations, a.Enabled,
+		a.ID, a.FindingID, a.Event.ID, a.Status, a.Time, a.HasRecommendations, a.Enabled,
 	)
 	return errors.WithStack(err)
 }
@@ -115,7 +115,7 @@ func (s *PostgresActionStorage) SetStatus(id string, status string) error {
 }
 
 func (s *PostgresActionStorage) Update(action recommendations.AWSAction) error {
-	_, err := s.db.Query("UPDATE actions SET finding_id=$2, status=$3, time=$4, has_recommendations=$5, enabled=$6 WHERE id = $1", action.ID, action.FindingId, action.Status, action.Time, action.HasRecommendations, action.Enabled)
+	_, err := s.db.Query("UPDATE actions SET finding_id=$2, status=$3, time=$4, has_recommendations=$5, enabled=$6 WHERE id = $1", action.ID, action.FindingID, action.Status, action.Time, action.HasRecommendations, action.Enabled)
 	if err != nil {
 		return errors.Wrap(err, "postgres update actions")
 	}

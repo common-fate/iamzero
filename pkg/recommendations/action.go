@@ -19,7 +19,7 @@ type CloudResourceInstance struct {
 
 type AWSAction struct {
 	ID        string    `json:"id"`
-	FindingId string    `json:"findingId" db:"finding_id"`
+	FindingID string    `json:"findingId" db:"finding_id"`
 	Event     AWSEvent  `json:"event"`
 	Status    string    `json:"status"`
 	Time      time.Time `json:"time"`
