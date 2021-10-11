@@ -95,28 +95,25 @@ func (c *AllInOneCommand) Exec(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	// TODO: shift these to be configurable factories, similar to TokenStoreFactory
-	actionStorage := storage.NewInMemoryActionStorage()
-	policyStorage := storage.NewInMemoryFindingStorage()
+
+	storage := storage.BuildInMemoryStorage()
 
 	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
-		Logger:         log,
-		Tracer:         tracer,
-		TokenStore:     store,
-		ActionStorage:  actionStorage,
-		FindingStorage: policyStorage,
-		Auditor:        c.Auditor,
+		Logger:     log,
+		Tracer:     tracer,
+		TokenStore: store,
+		Storage:    storage,
+		Auditor:    c.Auditor,
 	}); err != nil {
 		return err
 	}
 
 	if err := c.Console.Start(&consoleApp.ConsoleOptions{
-		Logger:         log,
-		Tracer:         tracer,
-		TokenStore:     store,
-		ActionStorage:  actionStorage,
-		FindingStorage: policyStorage,
-		Auditor:        c.Auditor,
+		Logger:     log,
+		Tracer:     tracer,
+		TokenStore: store,
+		Storage:    storage,
+		Auditor:    c.Auditor,
 	}); err != nil {
 		return err
 	}

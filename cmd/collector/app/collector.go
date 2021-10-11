@@ -14,13 +14,12 @@ import (
 )
 
 type Collector struct {
-	log            *zap.SugaredLogger
-	tracer         trace.Tracer
-	tokenStore     tokens.TokenStorer
-	demo           bool
-	actionStorage  storage.ActionStorage
-	findingStorage storage.FindingStorage
-	auditor        *audit.Auditor
+	log        *zap.SugaredLogger
+	tracer     trace.Tracer
+	tokenStore tokens.TokenStorer
+	demo       bool
+	storage    *storage.Storage
+	auditor    *audit.Auditor
 
 	// whether to enable the AWS CDK resource integration
 	CDK                   bool
@@ -41,12 +40,11 @@ func New() *Collector {
 }
 
 type CollectorOptions struct {
-	Logger         *zap.SugaredLogger
-	Tracer         trace.Tracer
-	Auditor        *audit.Auditor
-	TokenStore     tokens.TokenStorer
-	ActionStorage  storage.ActionStorage
-	FindingStorage storage.FindingStorage
+	Logger     *zap.SugaredLogger
+	Tracer     trace.Tracer
+	Auditor    *audit.Auditor
+	TokenStore tokens.TokenStorer
+	Storage    *storage.Storage
 }
 
 func (c *Collector) AddFlags(fs *flag.FlagSet) {
@@ -64,8 +62,7 @@ func (c *Collector) Start(ctx context.Context, opts *CollectorOptions) error {
 	c.tracer = opts.Tracer
 	c.auditor = opts.Auditor
 	c.tokenStore = opts.TokenStore
-	c.actionStorage = opts.ActionStorage
-	c.findingStorage = opts.FindingStorage
+	c.storage = opts.Storage
 
 	c.auditor.Setup(c.log)
 

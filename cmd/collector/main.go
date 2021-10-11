@@ -71,18 +71,15 @@ func (c *CollectorCommand) Exec(ctx context.Context, _ []string) error {
 		return err
 	}
 
-	// TODO: shift these to be configurable factories, similar to TokenStoreFactory
-	actionStorage := storage.NewInMemoryActionStorage()
-	policyStorage := storage.NewInMemoryFindingStorage()
+	storage := storage.BuildInMemoryStorage()
 
 	co := c.Collector
 
 	if err := co.Start(ctx, &app.CollectorOptions{
-		Logger:         log,
-		Tracer:         tracer,
-		TokenStore:     store,
-		ActionStorage:  actionStorage,
-		FindingStorage: policyStorage,
+		Logger:     log,
+		Tracer:     tracer,
+		TokenStore: store,
+		Storage:    storage,
 	}); err != nil {
 		return err
 	}

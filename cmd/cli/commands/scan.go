@@ -101,18 +101,16 @@ func (c *ScanCommand) Exec(ctx context.Context, args []string) error {
 		return errors.Wrap(err, "error opening local database, ensure that you are not running 'iamzero local'")
 	}
 
-	actionStorage := storage.NewBoltActionStorage(db)
-	findingStorage := storage.NewBoltFindingStorage(db)
+	storage := storage.BuildBoltStorage(db)
 
 	c.Auditor.Setup(log)
 
 	fmt.Printf("Querying CloudTrail logs for %s\n", c.roleName)
 
 	detective := events.NewDetective(events.DetectiveOpts{
-		Log:            log,
-		Auditor:        c.Auditor,
-		ActionStorage:  actionStorage,
-		FindingStorage: findingStorage,
+		Log:     log,
+		Auditor: c.Auditor,
+		Storage: storage,
 	})
 
 	a := cloudtrail.NewCloudTrailAuditor(&cloudtrail.CloudTrailAuditorParams{

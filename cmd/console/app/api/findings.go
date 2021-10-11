@@ -24,9 +24,9 @@ func (h *Handlers) ListFindings(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "finding status must be 'active' or 'resolved'", http.StatusBadRequest)
 			return
 		}
-		findings, err = h.FindingStorage.ListForStatus(status)
+		findings, err = h.Storage.Finding.ListForStatus(status)
 	} else {
-		findings, err = h.FindingStorage.List()
+		findings, err = h.Storage.Finding.List()
 	}
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
@@ -39,7 +39,7 @@ func (h *Handlers) ListFindings(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetFinding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	findingID := chi.URLParam(r, "findingID")
-	finding, err := h.FindingStorage.Get(findingID)
+	finding, err := h.Storage.Finding.Get(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -56,7 +56,7 @@ func (h *Handlers) GetFinding(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ListActionsForFinding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	findingID := chi.URLParam(r, "findingID")
-	alerts, err := h.ActionStorage.ListForPolicy(findingID)
+	alerts, err := h.Storage.Action.ListForPolicy(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -79,7 +79,7 @@ func (h *Handlers) FindFinding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	finding, err := h.FindingStorage.FindByRole(storage.FindByRoleQuery{Role: role, Status: status})
+	finding, err := h.Storage.Finding.FindByRole(storage.FindByRoleQuery{Role: role, Status: status})
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -108,7 +108,7 @@ func (h *Handlers) SetFindingStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	finding, err := h.FindingStorage.Get(findingID)
+	finding, err := h.Storage.Finding.Get(findingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -121,7 +121,7 @@ func (h *Handlers) SetFindingStatus(w http.ResponseWriter, r *http.Request) {
 
 	finding.Status = b.Status
 
-	err = h.FindingStorage.CreateOrUpdate(*finding)
+	err = h.Storage.Finding.CreateOrUpdate(*finding)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 	}

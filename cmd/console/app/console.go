@@ -14,12 +14,11 @@ import (
 )
 
 type Console struct {
-	log            *zap.SugaredLogger
-	tracer         trace.Tracer
-	tokenStore     tokens.TokenStorer
-	actionStorage  storage.ActionStorage
-	findingStorage storage.FindingStorage
-	auditor        *audit.Auditor
+	log        *zap.SugaredLogger
+	tracer     trace.Tracer
+	tokenStore tokens.TokenStorer
+	storage    *storage.Storage
+	auditor    *audit.Auditor
 
 	Host string
 
@@ -32,12 +31,11 @@ func New() *Console {
 }
 
 type ConsoleOptions struct {
-	Logger         *zap.SugaredLogger
-	Tracer         trace.Tracer
-	TokenStore     tokens.TokenStorer
-	ActionStorage  storage.ActionStorage
-	FindingStorage storage.FindingStorage
-	Auditor        *audit.Auditor
+	Logger     *zap.SugaredLogger
+	Tracer     trace.Tracer
+	TokenStore tokens.TokenStorer
+	Storage    *storage.Storage
+	Auditor    *audit.Auditor
 }
 
 func (c *Console) AddFlags(fs *flag.FlagSet) {
@@ -48,8 +46,7 @@ func (c *Console) Start(opts *ConsoleOptions) error {
 	c.log = opts.Logger
 	c.tracer = opts.Tracer
 	c.tokenStore = opts.TokenStore
-	c.actionStorage = opts.ActionStorage
-	c.findingStorage = opts.FindingStorage
+	c.storage = opts.Storage
 	c.auditor = opts.Auditor
 
 	c.log.With("console-host", c.Host).Info("starting IAM Zero console")

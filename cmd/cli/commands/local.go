@@ -181,29 +181,26 @@ func (c *LocalCommand) Exec(ctx context.Context, _ []string) error {
 		return errors.Wrap(err, "error opening local database, ensure that you are not running 'iamzero local'")
 	}
 
-	actionStorage := storage.NewBoltActionStorage(db)
-	findingStorage := storage.NewBoltFindingStorage(db)
+	storage := storage.BuildBoltStorage(db)
 
 	c.Auditor.Setup(log)
 
 	if err := c.Collector.Start(ctx, &collectorApp.CollectorOptions{
-		Logger:         log,
-		Tracer:         tracer,
-		TokenStore:     tokenStore,
-		ActionStorage:  actionStorage,
-		FindingStorage: findingStorage,
-		Auditor:        c.Auditor,
+		Logger:     log,
+		Tracer:     tracer,
+		TokenStore: tokenStore,
+		Storage:    storage,
+		Auditor:    c.Auditor,
 	}); err != nil {
 		return err
 	}
 
 	if err := c.Console.Start(&consoleApp.ConsoleOptions{
-		Logger:         log,
-		Tracer:         tracer,
-		TokenStore:     tokenStore,
-		ActionStorage:  actionStorage,
-		FindingStorage: findingStorage,
-		Auditor:        c.Auditor,
+		Logger:     log,
+		Tracer:     tracer,
+		TokenStore: tokenStore,
+		Storage:    storage,
+		Auditor:    c.Auditor,
 	}); err != nil {
 		return err
 	}

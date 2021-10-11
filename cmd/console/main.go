@@ -71,18 +71,15 @@ func (c *ConsoleCommand) Exec(ctx context.Context, _ []string) error {
 		return err
 	}
 
-	// TODO: shift these to be configurable factories, similar to TokenStoreFactory
-	actionStorage := storage.NewInMemoryActionStorage()
-	policyStorage := storage.NewInMemoryFindingStorage()
+	storage := storage.BuildInMemoryStorage()
 
 	console := c.Collector
 
 	if err := console.Start(&app.ConsoleOptions{
-		Logger:         log,
-		Tracer:         tracer,
-		TokenStore:     store,
-		ActionStorage:  actionStorage,
-		FindingStorage: policyStorage,
+		Logger:     log,
+		Tracer:     tracer,
+		TokenStore: store,
+		Storage:    storage,
 	}); err != nil {
 		return err
 	}
