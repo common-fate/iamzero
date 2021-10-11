@@ -11,7 +11,7 @@ import (
 
 type ActionResponse struct {
 	ID        string                                  `json:"id"`
-	FindingId string                                  `json:"findingId"`
+	FindingID string                                  `json:"findingId"`
 	Event     recommendations.AWSEvent                `json:"event"`
 	Status    string                                  `json:"status"`
 	Time      time.Time                               `json:"time"`
@@ -31,7 +31,7 @@ func buildActionResponse(action recommendations.AWSAction) ActionResponse {
 	}
 	return ActionResponse{
 		ID:        action.ID,
-		FindingId: action.FindingID,
+		FindingID: action.FindingID,
 		Event:     action.Event,
 		Status:    action.Status,
 		// Resources:          action.Resources,
