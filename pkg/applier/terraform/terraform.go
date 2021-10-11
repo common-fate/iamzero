@@ -30,7 +30,7 @@ import (
 
 // TerraformFinding is proposed Terraform source code changes recommended by IAM Zero
 type TerraformFinding struct {
-	FindingId       string                    `json:"findingId"`
+	FindingID       string                    `json:"findingId"`
 	Role            string                    `json:"role"`
 	Recommendations []TerraformRecommendation `json:"recommendations"`
 }
@@ -285,7 +285,7 @@ func (t *TerraformIAMPolicyApplier) getRootFilePath() string {
 func (t *TerraformIAMPolicyApplier) calculateTerraformFinding(policy *recommendations.Finding, actions []recommendations.AWSAction) {
 
 	terraformFinding := TerraformFinding{
-		FindingId: policy.ID,
+		FindingID: policy.ID,
 		Role:      policy.Identity.Role,
 
 		Recommendations: []TerraformRecommendation{
