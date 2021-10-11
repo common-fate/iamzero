@@ -1,6 +1,10 @@
 package recommendations
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+
 	"github.com/common-fate/iamzero/pkg/audit"
 
 	"github.com/mitchellh/hashstructure/v2"
@@ -38,6 +42,21 @@ type AWSData struct {
 	Parameters       map[string]interface{} `json:"parameters"`
 	ExceptionMessage string                 `json:"exceptionMessage"`
 	ExceptionCode    string                 `json:"exceptionCode"`
+}
+
+// Value implements the driver.Valuer interface required to serialize the object to Postgres
+func (d AWSData) Value() (driver.Value, error) { return json.Marshal(&d) }
+
+// Scan implements the sql.Scanner interface required to deserialize the object from Postgres
+func (d *AWSData) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case []byte:
+		return json.Unmarshal(v, &d)
+	case string:
+		return json.Unmarshal([]byte(v), &d)
+	default:
+		return fmt.Errorf("Unsupported type: %T", v)
+	}
 }
 
 type AWSIdentity struct {
