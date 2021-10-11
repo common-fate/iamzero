@@ -31,12 +31,6 @@ export const MOCK_ACTIONS: Action[] = [
         exceptionCode: "AccessDenied",
       },
     },
-    resources: [
-      {
-        id: "1",
-        name: "iamzero-test-access-bucket",
-      },
-    ],
     enabled: true,
     selectedAdvisoryId: "934e8218-ddc1-4ae6-a0cd-e86b70f8d96b",
     status: "active",
@@ -101,7 +95,7 @@ export const MOCK_POLICIES: Finding[] = [
       role: "arn:aws:iam::123456789012:role/iamzero-test-role",
     },
     eventCount: 31,
-    lastUpdated: new Date(),
+    updatedAt: new Date(),
     document: {
       Version: "2012-10-17",
       Statement: [
@@ -125,7 +119,7 @@ export const MOCK_POLICIES: Finding[] = [
       role: "arn:aws:iam::123456789012:role/iamzero-test-role",
     },
     eventCount: 5,
-    lastUpdated: new Date(),
+    updatedAt: new Date(),
     document: {
       Version: "2012-10-17",
       Statement: [

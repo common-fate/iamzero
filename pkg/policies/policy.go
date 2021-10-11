@@ -1,14 +1,31 @@
 package policies
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 type AWSIAMPolicy struct {
 	Version   string
 	Id        *string `json:",omitempty"`
 	Statement IAMStatements
+}
+
+// Value implements the driver.Valuer interface required to serialize the object to Postgres
+func (p AWSIAMPolicy) Value() (driver.Value, error) { return json.Marshal(&p) }
+
+// Scan implements the sql.Scanner interface required to deserialize the object from Postgres
+func (p *AWSIAMPolicy) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case []byte:
+		return json.Unmarshal(v, &p)
+	case string:
+		return json.Unmarshal([]byte(v), &p)
+	default:
+		return fmt.Errorf("Unsupported type: %T", v)
+	}
 }
 
 type AWSIAMStatement struct {

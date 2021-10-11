@@ -84,11 +84,11 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 
 		// create a new policy for the token and role if it doesn't exist
 		finding = &recommendations.Finding{
-			ID:          uuid.NewString(),
-			Identity:    identity,
-			LastUpdated: time.Now(),
-			EventCount:  0,
-			Status:      "active",
+			ID:         uuid.NewString(),
+			Identity:   identity,
+			UpdatedAt:  time.Now(),
+			EventCount: 0,
+			Status:     "active",
 			Document: policies.AWSIAMPolicy{
 				Version:   "2012-10-17",
 				Statement: []policies.AWSIAMStatement{},
@@ -110,17 +110,17 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 		Status:             recommendations.AlertActive,
 		Time:               time.Now(),
 		HasRecommendations: false,
-		Resources:          []recommendations.Resource{},
-		Recommendations:    []*recommendations.JSONAdvice{},
-		Enabled:            true,
-		SelectedAdvisoryID: "",
+		// Resources:          []recommendations.CloudResourceInstance{},
+		Recommendations:                []*recommendations.LeastPrivilegePolicy{},
+		Enabled:                        true,
+		SelectedLeastPrivilegePolicyID: "",
 	}
 
 	if len(advice) > 0 {
 		action.HasRecommendations = true
 		action.Recommendations = advice
-		action.Resources = advice[0].Details().Resources // TODO: we should aggregate resources across different advisories
-		action.SelectedAdvisoryID = advice[0].GetID()
+		// action.Resources = advice[0].Details().Resources // TODO: we should aggregate resources across different advisories
+		action.SelectedLeastPrivilegePolicyID = advice[0].GetID()
 	}
 
 	c.log.With("action", action).Info("adding action")

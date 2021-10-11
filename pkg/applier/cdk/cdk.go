@@ -10,7 +10,6 @@ import (
 	"path"
 
 	"github.com/common-fate/iamzero/pkg/applier"
-	"github.com/common-fate/iamzero/pkg/policies"
 	"github.com/common-fate/iamzero/pkg/recommendations"
 )
 
@@ -130,61 +129,61 @@ func (t *CDKIAMPolicyApplier) Apply(changes *applier.PendingChanges) error {
 }
 
 func (t *CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Finding, actions []recommendations.AWSAction) {
-	// only derive a CDK finding if we know that the role that we are
-	// giving recommendations for has been defined using CDK
-	if policy.Identity.CDKResource == nil {
-		return
-	}
-	f := CDKFinding{
-		FindingID: policy.ID,
-		Role: CDKRole{
-			Type:    policy.Identity.CDKResource.Type,
-			CDKPath: policy.Identity.CDKResource.CDKPath,
-		},
-		Recommendations: []CDKRecommendation{},
-	}
+	// // only derive a CDK finding if we know that the role that we are
+	// // giving recommendations for has been defined using CDK
+	// if policy.Identity.CDKResource == nil {
+	// 	return
+	// }
+	// f := CDKFinding{
+	// 	FindingID: policy.ID,
+	// 	Role: CDKRole{
+	// 		Type:    policy.Identity.CDKResource.Type,
+	// 		CDKPath: policy.Identity.CDKResource.CDKPath,
+	// 	},
+	// 	Recommendations: []CDKRecommendation{},
+	// }
 
-	for _, alert := range actions {
-		if alert.Enabled && len(alert.Recommendations) > 0 {
-			rec := CDKRecommendation{
-				Type:       "IAMInlinePolicy",
-				Statements: []CDKStatement{},
-			}
-			advisory := alert.GetSelectedAdvisory()
-			for _, description := range advisory.Details().Description {
-				// TODO: this should be redesigned to avoid casting from the interface.
-				policy, ok := description.Policy.(policies.AWSIAMPolicy)
-				if ok {
-					for _, s := range policy.Statement {
-						cdkStatement := CDKStatement{
-							Actions: s.Action,
-						}
-						// TODO: we need to better structure resources so that
-						// we have a reference to a CDK resource in an IAM statement
-						for _, resource := range alert.Resources {
+	// for _, alert := range actions {
+	// 	if alert.Enabled && len(alert.Recommendations) > 0 {
+	// 		rec := CDKRecommendation{
+	// 			Type:       "IAMInlinePolicy",
+	// 			Statements: []CDKStatement{},
+	// 		}
+	// 		advisory := alert.GetSelectedAdvisory()
+	// 		for _, description := range advisory.Details().Description {
+	// 			// TODO: this should be redesigned to avoid casting from the interface.
+	// 			policy, ok := description.Policy.(policies.AWSIAMPolicy)
+	// 			if ok {
+	// 				for _, s := range policy.Statement {
+	// 					cdkStatement := CDKStatement{
+	// 						Actions: s.Action,
+	// 					}
+	// 					// TODO: we need to better structure resources so that
+	// 					// we have a reference to a CDK resource in an IAM statement
+	// 					for _, resource := range alert.Resources {
 
-							var cdkResource CDKResource
-							if resource.CDKResource != nil {
-								cdkResource = CDKResource{
-									Reference: "CDK",
-									Type:      resource.CDKResource.Type,
-									CDKPath:   &resource.CDKResource.CDKPath,
-								}
-							} else {
-								cdkResource = CDKResource{
-									Reference: "IAM",
-									ARN:       &resource.ARN,
-								}
-							}
-							cdkStatement.Resources = append(cdkStatement.Resources, cdkResource)
-						}
-						rec.Statements = append(rec.Statements, cdkStatement)
-					}
-				}
-			}
-			f.Recommendations = append(f.Recommendations, rec)
-		}
-	}
+	// 						var cdkResource CDKResource
+	// 						if resource.CDKResource != nil {
+	// 							cdkResource = CDKResource{
+	// 								Reference: "CDK",
+	// 								Type:      resource.CDKResource.Type,
+	// 								CDKPath:   &resource.CDKResource.CDKPath,
+	// 							}
+	// 						} else {
+	// 							cdkResource = CDKResource{
+	// 								Reference: "IAM",
+	// 								ARN:       &resource.ARN,
+	// 							}
+	// 						}
+	// 						cdkStatement.Resources = append(cdkStatement.Resources, cdkResource)
+	// 					}
+	// 					rec.Statements = append(rec.Statements, cdkStatement)
+	// 				}
+	// 			}
+	// 		}
+	// 		f.Recommendations = append(f.Recommendations, rec)
+	// 	}
+	// }
 
-	t.Finding = &f
+	// t.Finding = &f
 }

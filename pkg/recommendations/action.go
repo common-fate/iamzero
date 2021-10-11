@@ -3,34 +3,33 @@ package recommendations
 import (
 	"errors"
 	"time"
-
-	"github.com/common-fate/iamzero/pkg/policies"
 )
 
-// Resource is a cloud resource such as an S3 bucket which permissions can be granted for
+// CloudResourceInstance is a cloud resource such as an S3 bucket which permissions can be granted for
 // Currently we just use this in the UI to display a human-friendly list of resources
 // for each recorded action.
-type Resource struct {
+// A CloudResourceInstance is a **deployed** cloud resource which exists in a given particular cloud account.
+type CloudResourceInstance struct {
 	ID string `json:"id"`
 	// a friendly name for the resource
-	Name        string                `json:"name"`
-	CDKResource *policies.CDKResource `json:"cdkResource"`
-	ARN         string                `json:"arn"`
+	Name string `json:"name"`
+	// CDKResource *policies.CDKResource `json:"cdkResource"`
+	ARN string `json:"arn"`
 }
 
 type AWSAction struct {
-	ID                 string        `json:"id"`
-	FindingID          string        `json:"findingId"`
-	Event              AWSEvent      `json:"event"`
-	Status             string        `json:"status"`
-	Time               time.Time     `json:"time"`
-	Resources          []Resource    `json:"resources"`
-	Recommendations    []*JSONAdvice `json:"recommendations"`
-	HasRecommendations bool          `json:"hasRecommendations"`
+	ID        string    `json:"id"`
+	FindingID string    `json:"findingId"`
+	Event     AWSEvent  `json:"event"`
+	Status    string    `json:"status"`
+	Time      time.Time `json:"time"`
+	// Resources          []CloudResourceInstance `json:"resources"`
+	Recommendations    []*LeastPrivilegePolicy `json:"recommendations"`
+	HasRecommendations bool                    `json:"hasRecommendations"`
 	// Enabled indicates whether this action is used in a least-privilege policy
 	Enabled bool `json:"enabled"`
-	// SelectedAdvisoryID is the ID of the advisory selected by the user to resolve the policy
-	SelectedAdvisoryID string `json:"selectedAdvisoryId"`
+	// SelectedLeastPrivilegePolicyID is the ID of the advisory selected by the user to resolve the policy
+	SelectedLeastPrivilegePolicyID string `json:"selectedAdvisoryId"`
 }
 type AWSActions []*AWSAction
 
@@ -39,7 +38,7 @@ type AWSActions []*AWSAction
 func (a *AWSAction) SelectAdvisory(id string) error {
 	for _, r := range a.Recommendations {
 		if r.GetID() == id {
-			a.SelectedAdvisoryID = id
+			a.SelectedLeastPrivilegePolicyID = id
 			return nil
 		}
 	}
@@ -47,9 +46,9 @@ func (a *AWSAction) SelectAdvisory(id string) error {
 }
 
 // GetSelectedAdvisory returns the Advice object matching the action's SelectedAdvisoryID
-func (a *AWSAction) GetSelectedAdvisory() *JSONAdvice {
+func (a *AWSAction) GetSelectedAdvisory() *LeastPrivilegePolicy {
 	for _, r := range a.Recommendations {
-		if r.GetID() == a.SelectedAdvisoryID {
+		if r.GetID() == a.SelectedLeastPrivilegePolicyID {
 			return r
 		}
 	}

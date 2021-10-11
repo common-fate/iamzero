@@ -51,6 +51,57 @@ jobs:
       - name: Test
         run: go test ./...
 
+  database-test:
+    name: Postgres Integration Tests
+    runs-on: ubuntu-20.04
+
+    services:
+      postgres:
+        image: postgres:12
+        ports:
+          - "5432:5432"
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST: postgres
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: postgres
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+        # https://github.com/mvdan/github-actions-golang#how-do-i-set-up-caching-between-builds
+      - uses: actions/cache@v2
+        with:
+          # In order:
+          # * Module download cache
+          # * Build cache (Linux)
+          # * Build cache (Mac)
+          # * Build cache (Windows)
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+            %LocalAppData%\go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+        # the go:embed directive will fail the build if this folder does not exist
+      - name: Create frontend build folder
+        run: |
+          mkdir -p web/build
+          touch web/build/ignore
+
+      - name: Test
+        run: go test ./pkg/storage/postgres_integration_tests/... -tags=postgres
+
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-latest

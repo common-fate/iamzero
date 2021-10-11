@@ -30,7 +30,7 @@ func assertAvailablePRNG() {
 // case the caller should not continue.
 func GenerateRandomToken() (string, error) {
 	const n = 32
-	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
+	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	ret := make([]byte, n)
 	for i := 0; i < n; i++ {
 		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
