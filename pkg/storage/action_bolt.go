@@ -61,7 +61,7 @@ func (a *BoltActionStorage) ListForPolicy(findingID string) ([]recommendations.A
 
 	actionsForPolicy := []recommendations.AWSAction{}
 	for _, action := range actions {
-		if action.FindingID == findingID {
+		if action.FindingId == findingID {
 			actionsForPolicy = append(actionsForPolicy, action)
 
 		}

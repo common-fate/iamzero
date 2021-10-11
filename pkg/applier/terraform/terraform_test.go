@@ -27,7 +27,7 @@ func TestApplyFindingToBlocks(t *testing.T) {
 	iamRoleARN := "arn:aws:iam::12345678910:role/iamzero-tf-overprivileged-role"
 	actionsDemo := []string{"s3:GetObject"}
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket3/*"
-	finding := &terraformApplier.TerraformFinding{FindingID: "abcde", Role: iamRoleARN, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	finding := &terraformApplier.TerraformFinding{FindingId: "abcde", Role: iamRoleARN, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
 	tf := terraformApplier.TerraformIAMPolicyApplier{AWSIAMPolicyApplier: applier.AWSIAMPolicyApplier{
 		ProjectPath: "./test/example_1/"}, Finding: finding}
@@ -47,7 +47,7 @@ func TestApplyFindingToBlocksWithSpecificBucketResource(t *testing.T) {
 	iamRoleARN := "arn:aws:iam::12345678910:role/iamzero-tf-overprivileged-role"
 	actionsDemo := []string{"s3:GetObject"}
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket3/README.md"
-	finding := &terraformApplier.TerraformFinding{FindingID: "abcde", Role: iamRoleARN, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	finding := &terraformApplier.TerraformFinding{FindingId: "abcde", Role: iamRoleARN, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
 	tf := terraformApplier.TerraformIAMPolicyApplier{AWSIAMPolicyApplier: applier.AWSIAMPolicyApplier{
 		ProjectPath: "./test/example_1/"}, Finding: finding}
@@ -67,7 +67,7 @@ func TestApplyFindingForMultiFile(t *testing.T) {
 	iamRoleARN := "arn:aws:iam::12345678910:role/iamzero-tf-overprivileged-role-pa"
 	actionsDemo := []string{"s3:GetObject"}
 	bucketArn := "arn:aws:s3:::iamzero-tf-example-bucket4/*"
-	finding := &terraformApplier.TerraformFinding{FindingID: "abcde", Role: iamRoleARN, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
+	finding := &terraformApplier.TerraformFinding{FindingId: "abcde", Role: iamRoleARN, Recommendations: []terraformApplier.TerraformRecommendation{{Type: "IAMInlinePolicy", Statements: []terraformApplier.TerraformStatement{{Resources: []terraformApplier.TerraformResource{{Reference: bucketArn, ARN: &bucketArn}}, Actions: actionsDemo}}}}}
 
 	tf := terraformApplier.TerraformIAMPolicyApplier{AWSIAMPolicyApplier: applier.AWSIAMPolicyApplier{
 		ProjectPath: "./test/example_1/"}, Finding: finding}

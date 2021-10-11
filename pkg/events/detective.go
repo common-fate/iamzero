@@ -105,7 +105,7 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 
 	action := recommendations.AWSAction{
 		ID:                 uuid.NewString(),
-		FindingID:          finding.ID,
+		FindingId:          finding.ID,
 		Event:              e,
 		Status:             recommendations.AlertActive,
 		Time:               time.Now(),

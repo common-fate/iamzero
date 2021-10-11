@@ -16,6 +16,7 @@ const (
 // AWSEvent is an API call logged by an AWS SDK
 // instrumented with iamzero
 type AWSEvent struct {
+	ID       string      `json:"id" hash:"ignore"`
 	Time     string      `json:"time" hash:"ignore"`
 	Data     AWSData     `json:"data"`
 	Identity AWSIdentity `json:"identity"`

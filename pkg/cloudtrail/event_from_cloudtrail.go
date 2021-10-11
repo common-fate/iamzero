@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/common-fate/iamzero/pkg/recommendations"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -18,6 +19,7 @@ func safeStringEquals(a *string, b string) bool {
 // TryConvertToEvent tries to map the CloudTrail log entry
 // to an AWSEvent. If the log entry cannot be processed, ErrNoMapping is returned.
 func (c *CloudTrailLogEntry) TryConvertToEvent() (*recommendations.AWSEvent, error) {
+	eventId := uuid.NewString()
 	if safeStringEquals(c.EventSource, "s3.amazonaws.com") {
 		// S3
 		if safeStringEquals(c.EventName, "HeadObject") {
@@ -28,6 +30,7 @@ func (c *CloudTrailLogEntry) TryConvertToEvent() (*recommendations.AWSEvent, err
 			}
 
 			event := recommendations.AWSEvent{
+				ID:   eventId,
 				Time: *c.EventTime,
 				Identity: recommendations.AWSIdentity{
 					User:    *c.UserIdentity.PrincipalID,
@@ -53,6 +56,7 @@ func (c *CloudTrailLogEntry) TryConvertToEvent() (*recommendations.AWSEvent, err
 			}
 
 			event := recommendations.AWSEvent{
+				ID:   eventId,
 				Time: *c.EventTime,
 				Identity: recommendations.AWSIdentity{
 					User:    *c.UserIdentity.PrincipalID,

@@ -15,7 +15,7 @@ import (
 
 // CDKFinding is proposed CDK source code changes recommended by IAM Zero
 type CDKFinding struct {
-	FindingID       string              `json:"findingId"`
+	FindingId       string              `json:"findingId"`
 	Role            CDKRole             `json:"role"`
 	Recommendations []CDKRecommendation `json:"recommendations"`
 }
@@ -93,7 +93,7 @@ func (t *CDKIAMPolicyApplier) Plan() (*applier.PendingChanges, error) {
 		if err != nil {
 			return nil, err
 		}
-		t.AWSIAMPolicyApplier.Logger.With("finding", t.Finding.FindingID).Debug("applying finding")
+		t.AWSIAMPolicyApplier.Logger.With("finding", t.Finding.FindingId).Debug("applying finding")
 
 		cmd := exec.CommandContext(t.CTX, t.ApplierBinaryPath, "-f", string(findingStr), "-m", t.Manifest)
 		cmd.Stderr = os.Stderr
@@ -135,7 +135,7 @@ func (t *CDKIAMPolicyApplier) calculateCDKFinding(policy *recommendations.Findin
 	// 	return
 	// }
 	// f := CDKFinding{
-	// 	FindingID: policy.ID,
+	// 	FindingId: policy.ID,
 	// 	Role: CDKRole{
 	// 		Type:    policy.Identity.CDKResource.Type,
 	// 		CDKPath: policy.Identity.CDKResource.CDKPath,

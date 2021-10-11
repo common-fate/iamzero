@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/common-fate/iamzero/pkg/audit"
+	"github.com/google/uuid"
 )
 
 func buildExampleAdvisor() *Advisor {
@@ -38,6 +39,7 @@ var exampleAdvisoryTemplate = AdvisoryTemplate{
 
 func buildSampleEvent() AWSEvent {
 	return AWSEvent{
+		ID:   uuid.NewString(),
 		Time: "",
 		Data: AWSData{
 			Service:   "s3",

@@ -11,7 +11,7 @@ import (
 
 type ActionResponse struct {
 	ID        string                                  `json:"id"`
-	FindingID string                                  `json:"findingId"`
+	FindingId string                                  `json:"findingId"`
 	Event     recommendations.AWSEvent                `json:"event"`
 	Status    string                                  `json:"status"`
 	Time      time.Time                               `json:"time"`
@@ -31,7 +31,7 @@ func buildActionResponse(action recommendations.AWSAction) ActionResponse {
 	}
 	return ActionResponse{
 		ID:        action.ID,
-		FindingID: action.FindingID,
+		FindingId: action.FindingId,
 		Event:     action.Event,
 		Status:    action.Status,
 		// Resources:          action.Resources,
@@ -105,7 +105,7 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.FindingStorage.Get(action.FindingID)
+	policy, err := h.FindingStorage.Get(action.FindingId)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
