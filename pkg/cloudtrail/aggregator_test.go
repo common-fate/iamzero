@@ -9,6 +9,7 @@ import (
 
 func TestAggregatorRead_Works(t *testing.T) {
 	e := getTestLogEntry()
+
 	agg := NewAggregator()
 
 	err := agg.Read(e)
@@ -17,7 +18,9 @@ func TestAggregatorRead_Works(t *testing.T) {
 	res := agg.GetEvents()
 
 	expected := []recommendations.AWSEvent{
+
 		{
+			ID:   res[0].ID,
 			Time: "2021-09-02T04:29:14Z",
 			Identity: recommendations.AWSIdentity{
 				User:    "AROAUAMTP2WEJUZJXFJX7:test-role",
@@ -34,5 +37,6 @@ func TestAggregatorRead_Works(t *testing.T) {
 			},
 		},
 	}
+
 	assert.Equal(t, expected, res)
 }

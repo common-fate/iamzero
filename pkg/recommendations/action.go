@@ -19,13 +19,13 @@ type CloudResourceInstance struct {
 
 type AWSAction struct {
 	ID        string    `json:"id"`
-	FindingID string    `json:"findingId"`
+	FindingID string    `json:"findingId" db:"finding_id"`
 	Event     AWSEvent  `json:"event"`
 	Status    string    `json:"status"`
 	Time      time.Time `json:"time"`
 	// Resources          []CloudResourceInstance `json:"resources"`
 	Recommendations    []*LeastPrivilegePolicy `json:"recommendations"`
-	HasRecommendations bool                    `json:"hasRecommendations"`
+	HasRecommendations bool                    `json:"hasRecommendations" db:"has_recommendations"`
 	// Enabled indicates whether this action is used in a least-privilege policy
 	Enabled bool `json:"enabled"`
 	// SelectedLeastPrivilegePolicyID is the ID of the advisory selected by the user to resolve the policy

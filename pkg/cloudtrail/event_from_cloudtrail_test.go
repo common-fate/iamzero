@@ -31,6 +31,7 @@ func TestTryConvertToEvent_Works(t *testing.T) {
 	assert.NoError(t, err)
 
 	expected := &recommendations.AWSEvent{
+		ID:   result.ID,
 		Time: "2021-09-02T04:29:14Z",
 		Identity: recommendations.AWSIdentity{
 			User:    "AROAUAMTP2WEJUZJXFJX7:test-role",

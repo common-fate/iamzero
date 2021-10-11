@@ -1,9 +1,14 @@
 package recommendations
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/google/uuid"
+)
 
 func TestHashEvent_Works(t *testing.T) {
 	e := AWSEvent{
+		ID:   uuid.NewString(),
 		Time: "2021-09-02T04:29:14Z",
 		Identity: AWSIdentity{
 			User:    "AROAUAMTP2WEJUZJXFJX7:test-role",
