@@ -158,10 +158,9 @@ func (c *Collector) HandleSQSMessage(ctx context.Context, msg *types.Message) er
 	}
 
 	detective := events.NewDetective(events.DetectiveOpts{
-		Log:            c.log,
-		ActionStorage:  c.actionStorage,
-		FindingStorage: c.findingStorage,
-		Auditor:        c.auditor,
+		Log:     c.log,
+		Storage: c.storage,
+		Auditor: c.auditor,
 	})
 
 	_, err = detective.AnalyseEvent(e)

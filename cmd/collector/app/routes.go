@@ -66,10 +66,9 @@ func (c *Collector) HTTPCreateEventBatchHandler(w http.ResponseWriter, r *http.R
 	c.log.With("events", rec).Info("received events")
 
 	detective := events.NewDetective(events.DetectiveOpts{
-		Log:            c.log,
-		ActionStorage:  c.actionStorage,
-		FindingStorage: c.findingStorage,
-		Auditor:        c.auditor,
+		Log:     c.log,
+		Storage: c.storage,
+		Auditor: c.auditor,
 	})
 
 	var res CreateEventBatchResponse

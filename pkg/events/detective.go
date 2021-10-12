@@ -14,26 +14,23 @@ import (
 
 // Detective looks through events to create and update Findings
 type Detective struct {
-	log            *zap.SugaredLogger
-	actionStorage  storage.ActionStorage
-	findingStorage storage.FindingStorage
-	auditor        *audit.Auditor
+	log     *zap.SugaredLogger
+	storage *storage.Storage
+	auditor *audit.Auditor
 }
 
 type DetectiveOpts struct {
-	Log            *zap.SugaredLogger
-	ActionStorage  storage.ActionStorage
-	FindingStorage storage.FindingStorage
-	Auditor        *audit.Auditor
+	Log     *zap.SugaredLogger
+	Storage *storage.Storage
+	Auditor *audit.Auditor
 }
 
 // NewDetective creates and initialises a new Detective
 func NewDetective(opts DetectiveOpts) *Detective {
 	return &Detective{
-		log:            opts.Log,
-		actionStorage:  opts.ActionStorage,
-		findingStorage: opts.FindingStorage,
-		auditor:        opts.Auditor,
+		log:     opts.Log,
+		storage: opts.Storage,
+		auditor: opts.Auditor,
 	}
 }
 
@@ -67,7 +64,7 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 	c.log.With("cdkResource", cdkResource, "physicalID", physicalID).Debug("looked up CDK resource")
 
 	// try and find an existing finding
-	finding, err := c.findingStorage.FindByRole(storage.FindByRoleQuery{
+	finding, err := c.storage.Finding.FindByRole(storage.FindByRoleQuery{
 		Role:   e.Identity.Role,
 		Status: recommendations.PolicyStatusActive,
 	})
@@ -124,18 +121,18 @@ func (c *Detective) AnalyseEvent(e recommendations.AWSEvent) (*recommendations.A
 	}
 
 	c.log.With("action", action).Info("adding action")
-	err = c.actionStorage.Add(action)
+	err = c.storage.Action.Add(action)
 	if err != nil {
 		return nil, err
 	}
 
-	actions, err := c.actionStorage.ListForPolicy(finding.ID)
+	actions, err := c.storage.Action.ListForPolicy(finding.ID)
 	if err != nil {
 		return nil, err
 	}
 	finding.RecalculateDocument(actions)
 
-	err = c.findingStorage.CreateOrUpdate(*finding)
+	err = c.storage.Finding.CreateOrUpdate(*finding)
 	if err != nil {
 		return nil, err
 	}

@@ -18,11 +18,12 @@ func mockAWSAction(findingID string) recommendations.AWSAction {
 		Event: recommendations.AWSEvent{
 			ID: uuid.NewString(),
 			Identity: recommendations.AWSIdentity{
-
 				User:    "testUser",
 				Role:    "testRole",
 				Account: "123456789012",
-			}, Data: recommendations.AWSData{}, Time: "2021-09-02T04:29:14Z"},
+			},
+			Data: recommendations.AWSData{},
+			Time: "2021-09-02T04:29:14Z"},
 		Status:             "test",
 		FindingID:          findingID,
 		Time:               time.Now(),

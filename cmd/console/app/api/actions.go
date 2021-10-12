@@ -46,7 +46,7 @@ func (h *Handlers) ListActions(w http.ResponseWriter, r *http.Request) {
 
 	actionsResponse := []ActionResponse{}
 
-	actions, err := h.ActionStorage.List()
+	actions, err := h.Storage.Action.List()
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -64,7 +64,7 @@ func (h *Handlers) GetAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	actionID := chi.URLParam(r, "actionID")
 
-	action, err := h.ActionStorage.Get(actionID)
+	action, err := h.Storage.Action.Get(actionID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -95,7 +95,7 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	action, err := h.ActionStorage.Get(actionID)
+	action, err := h.Storage.Action.Get(actionID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -105,7 +105,7 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.FindingStorage.Get(action.FindingID)
+	policy, err := h.Storage.Finding.Get(action.FindingID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
@@ -126,20 +126,20 @@ func (h *Handlers) EditAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := h.ActionStorage.Update(*action); err != nil {
+	if err := h.Storage.Action.Update(*action); err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}
 
 	// return the updated Policy corresponding to this alert
-	actions, err := h.ActionStorage.ListForPolicy(policy.ID)
+	actions, err := h.Storage.Action.ListForPolicy(policy.ID)
 	if err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}
 
 	policy.RecalculateDocument(actions)
-	if err := h.FindingStorage.CreateOrUpdate(*policy); err != nil {
+	if err := h.Storage.Finding.CreateOrUpdate(*policy); err != nil {
 		io.RespondError(ctx, h.Log, w, err)
 		return
 	}

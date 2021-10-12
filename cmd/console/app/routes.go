@@ -14,11 +14,10 @@ import (
 func (c *Console) GetConsoleRoutes() *chi.Mux {
 	router := chi.NewRouter()
 	handlers := api.Handlers{
-		Log:            c.log,
-		TokenStore:     c.tokenStore,
-		ActionStorage:  c.actionStorage,
-		FindingStorage: c.findingStorage,
-		Auditor:        c.auditor,
+		Log:        c.log,
+		TokenStore: c.tokenStore,
+		Storage:    c.storage,
+		Auditor:    c.auditor,
 	}
 
 	router.Route("/api/v1", func(r chi.Router) {
