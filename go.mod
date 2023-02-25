@@ -18,7 +18,6 @@ require (
 	github.com/fatih/color v1.12.0
 	github.com/go-chi/chi v1.5.4
 	github.com/golang-migrate/migrate/v4 v4.15.0
-	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/hcl/v2 v2.10.1
 	github.com/hexops/gotextdiff v1.0.3
@@ -40,13 +39,11 @@ require (
 	go.uber.org/zap v1.17.0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
-	google.golang.org/appengine v1.6.7 // indirect
+	golang.org/x/sys v0.1.0 // indirect
 	google.golang.org/genproto v0.0.0-20210828152312-66f60bf46e71 // indirect
 	google.golang.org/grpc v1.40.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.63.2
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 
 )
